@@ -1,9 +1,32 @@
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@import "tailwindcss";
+
+@plugin "@iconify/tailwind4";
+
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
+
+@theme {
+  --color-accent: #7aa0ff;
+  --color-accent-hover: #92b4ff;
+  --color-accent-light: #4a7aff;
+  --color-accent-light-hover: #3060ee;
+}
+
+:root {
+  --light-page: #e7eef8;
+  --light-surface: rgba(255, 255, 255, 0.64);
+  --light-surface-strong: rgba(250, 252, 255, 0.84);
+  --light-border: rgba(255, 255, 255, 0.74);
+  --light-border-soft: rgba(148, 163, 184, 0.2);
+  --light-text: #1e293b;
+  --light-text-strong: #0f172a;
+  --light-text-muted: rgba(71, 85, 105, 0.86);
+  --light-shadow-soft: 0 12px 30px rgba(125, 148, 186, 0.14);
+  --light-shadow-float:
+    0 18px 44px rgba(116, 138, 176, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  --light-shadow-panel:
+    0 24px 64px rgba(109, 132, 170, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  --light-ring: 0 0 0 3px rgba(118, 162, 255, 0.18);
 }
 
 html,
@@ -14,13 +37,16 @@ body,
   overflow: hidden;
 }
 
+html.dark {
+  color-scheme: dark;
+}
+
+html.light {
+  color-scheme: light;
+}
+
 body {
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
-  background: #0a0a1a;
-  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--light-page);
+  color: var(--light-text);
 }

@@ -14,7 +14,20 @@ function update() {
   time.value = props.showSeconds ? `${h}:${m}:${s}` : `${h}:${m}`;
 
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   date.value = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
 }
 
@@ -29,35 +42,16 @@ onUnmounted(() => clearInterval(timer));
 </script>
 
 <template>
-  <div class="clock">
-    <div class="clock-time">{{ time }}</div>
-    <div class="clock-date">{{ date }}</div>
+  <div class="text-center select-none">
+    <div
+      class="text-[clamp(4rem,10vw,8rem)] font-thin tracking-[0.05em] leading-none text-white dark:text-white light:text-slate-900 [text-shadow:0_0_40px_rgba(120,160,255,0.4),0_2px_8px_rgba(0,0,0,0.5)] dark:[text-shadow:0_0_40px_rgba(120,160,255,0.4),0_2px_8px_rgba(0,0,0,0.5)] light:[text-shadow:0_12px_24px_rgba(255,255,255,0.58),0_2px_10px_rgba(116,138,176,0.18)]"
+    >
+      {{ time }}
+    </div>
+    <div
+      class="mt-2 text-[clamp(0.9rem,2vw,1.1rem)] font-light tracking-[0.15em] uppercase text-white/55 dark:text-white/55 light:text-slate-600/95"
+    >
+      {{ date }}
+    </div>
   </div>
 </template>
-
-<style scoped>
-.clock {
-  text-align: center;
-  user-select: none;
-}
-
-.clock-time {
-  font-size: clamp(4rem, 10vw, 8rem);
-  font-weight: 200;
-  letter-spacing: 0.05em;
-  color: #fff;
-  text-shadow:
-    0 0 40px rgba(120, 160, 255, 0.4),
-    0 2px 8px rgba(0, 0, 0, 0.5);
-  line-height: 1;
-}
-
-.clock-date {
-  margin-top: 0.5rem;
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
-  font-weight: 300;
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-}
-</style>

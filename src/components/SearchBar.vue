@@ -33,21 +33,28 @@ function selectEngine(key: keyof typeof engines) {
 </script>
 
 <template>
-  <div class="search-wrap">
-    <div class="search-box" :class="{ focused: showEngineMenu }">
+  <div class="relative w-full max-w-[600px]">
+    <!-- Search box -->
+    <div
+      class="flex items-center rounded-full backdrop-blur-2xl overflow-hidden border transition-all duration-200 bg-white/10 border-white/15 dark:bg-white/10 dark:border-white/15 light:bg-[rgba(255,255,255,0.68)] light:border-[rgba(255,255,255,0.76)] light:[box-shadow:var(--light-shadow-float)] focus-within:border-accent/50 focus-within:shadow-[0_0_0_3px_rgba(120,160,255,0.15)] dark:focus-within:border-accent/50 light:focus-within:border-[rgba(139,170,226,0.62)] light:focus-within:[box-shadow:var(--light-ring),0_22px_44px_rgba(117,144,187,0.22),inset_0_1px_0_rgba(255,255,255,0.82)]"
+    >
       <!-- Engine selector -->
       <button
-        class="engine-btn"
+        class="flex items-center justify-center w-11 h-11 bg-transparent border-none cursor-pointer flex-shrink-0 rounded-l-full transition-colors duration-150 hover:bg-white/8 dark:hover:bg-white/8 light:hover:bg-[rgba(109,141,196,0.08)]"
         :title="engines[engine].name"
         @click="showEngineMenu = !showEngineMenu"
       >
-        <span class="engine-icon">{{ engines[engine].icon }}</span>
+        <span
+          class="text-[0.85rem] font-semibold text-white/70 dark:text-white/70 light:text-slate-900"
+        >
+          {{ engines[engine].icon }}
+        </span>
       </button>
 
       <!-- Input -->
       <input
         v-model="query"
-        class="search-input"
+        class="flex-1 h-11 bg-transparent border-none outline-none text-base px-2 text-white placeholder:text-white/30 dark:text-white dark:placeholder:text-white/30 light:text-slate-900 light:placeholder:text-slate-500/80"
         type="text"
         placeholder="Search..."
         autofocus
@@ -56,8 +63,18 @@ function selectEngine(key: keyof typeof engines) {
       />
 
       <!-- Search button -->
-      <button class="search-btn" @click="search">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <button
+        class="flex items-center justify-center w-11 h-11 bg-transparent border-none cursor-pointer flex-shrink-0 rounded-r-full transition-all duration-150 text-white/50 hover:text-white hover:bg-white/8 dark:text-white/50 dark:hover:text-white dark:hover:bg-white/8 light:text-slate-500 light:hover:text-slate-900 light:hover:bg-[rgba(109,141,196,0.08)]"
+        @click="search"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.35-4.35" />
         </svg>
@@ -66,166 +83,39 @@ function selectEngine(key: keyof typeof engines) {
 
     <!-- Engine dropdown -->
     <Transition name="dropdown">
-      <div v-if="showEngineMenu" class="engine-menu">
+      <div
+        v-if="showEngineMenu"
+        class="absolute top-[calc(100%+8px)] left-0 rounded-xl backdrop-blur-xl border p-1.5 min-w-40 z-[100] shadow-[0_8px_32px_rgba(0,0,0,0.4)] bg-slate-900/95 border-white/12 dark:bg-slate-900/95 dark:border-white/12 light:bg-[rgba(248,251,255,0.84)] light:border-[rgba(255,255,255,0.78)] light:[box-shadow:0_20px_46px_rgba(116,138,176,0.2),inset_0_1px_0_rgba(255,255,255,0.84)]"
+      >
         <button
           v-for="(eng, key) in engines"
           :key="key"
-          class="engine-option"
-          :class="{ active: key === engine }"
+          class="flex items-center gap-2.5 w-full px-3 py-2 bg-transparent border-none rounded-lg cursor-pointer text-[0.9rem] transition-all duration-150 text-left text-white/70 hover:bg-white/8 hover:text-white dark:text-white/70 dark:hover:bg-white/8 dark:hover:text-white light:text-slate-600 light:hover:bg-[rgba(109,141,196,0.1)] light:hover:text-slate-900"
+          :class="
+            key === engine
+              ? 'text-accent bg-accent/10 dark:text-accent dark:bg-accent/10 light:text-accent-light light:bg-[rgba(74,122,255,0.12)]'
+              : ''
+          "
           @click="selectEngine(key as keyof typeof engines)"
         >
-          <span class="engine-option-icon">{{ eng.icon }}</span>
+          <span class="text-[0.8rem] font-bold w-5 text-center">{{ eng.icon }}</span>
           <span>{{ eng.name }}</span>
         </button>
       </div>
     </Transition>
 
     <!-- Click outside to close -->
-    <div v-if="showEngineMenu" class="overlay" @click="showEngineMenu = false" />
+    <div v-if="showEngineMenu" class="fixed inset-0 z-[99]" @click="showEngineMenu = false" />
   </div>
 </template>
 
 <style scoped>
-.search-wrap {
-  position: relative;
-  width: 100%;
-  max-width: 600px;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 50px;
-  backdrop-filter: blur(20px);
-  transition: all 0.2s ease;
-  overflow: hidden;
-}
-
-.search-box:focus-within {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(120, 160, 255, 0.5);
-  box-shadow: 0 0 0 3px rgba(120, 160, 255, 0.15);
-}
-
-.engine-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  flex-shrink: 0;
-  border-radius: 50px 0 0 50px;
-  transition: background 0.15s;
-}
-
-.engine-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.engine-icon {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.search-input {
-  flex: 1;
-  height: 44px;
-  background: none;
-  border: none;
-  outline: none;
-  color: #fff;
-  font-size: 1rem;
-  padding: 0 0.5rem;
-}
-
-.search-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
-}
-
-.search-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
-  flex-shrink: 0;
-  border-radius: 0 50px 50px 0;
-  transition: color 0.15s, background 0.15s;
-}
-
-.search-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-/* Engine dropdown */
-.engine-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  background: rgba(15, 20, 40, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
-  backdrop-filter: blur(20px);
-  padding: 6px;
-  min-width: 160px;
-  z-index: 100;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
-.engine-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 12px;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
-  transition: background 0.15s, color 0.15s;
-  text-align: left;
-}
-
-.engine-option:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.engine-option.active {
-  color: #7aa0ff;
-  background: rgba(120, 160, 255, 0.1);
-}
-
-.engine-option-icon {
-  font-size: 0.8rem;
-  font-weight: 700;
-  width: 20px;
-  text-align: center;
-}
-
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99;
-}
-
-/* Transitions */
+/* Vue Transition — cannot be done with Tailwind */
 .dropdown-enter-active,
 .dropdown-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 
 .dropdown-enter-from,

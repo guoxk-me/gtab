@@ -19,123 +19,61 @@ function getInitial(name: string): string {
 </script>
 
 <template>
-  <div class="quick-links">
+  <div class="flex flex-wrap gap-4 justify-center max-w-[700px]">
     <a
       v-for="link in links"
       :key="link.id"
       :href="link.url"
-      class="link-item"
+      class="group flex flex-col items-center gap-2 no-underline cursor-pointer bg-transparent border-0 p-0"
       :title="link.name"
     >
-      <div class="link-icon">
+      <div
+        class="relative w-14 h-14 rounded-2xl backdrop-blur-xl flex items-center justify-center transition-all duration-200 overflow-hidden border bg-white/10 border-white/15 dark:bg-white/10 dark:border-white/15 light:bg-[rgba(255,255,255,0.66)] light:border-[rgba(255,255,255,0.76)] light:[box-shadow:var(--light-shadow-soft)] group-hover:bg-white/18 group-hover:-translate-y-0.5 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)] dark:group-hover:bg-white/18 light:group-hover:bg-[rgba(255,255,255,0.82)] light:group-hover:border-[rgba(255,255,255,0.88)] light:group-hover:[box-shadow:0_18px_34px_rgba(117,144,187,0.22),inset_0_1px_0_rgba(255,255,255,0.84)]"
+      >
         <img
           :src="getFaviconUrl(link.url)"
           :alt="link.name"
+          class="w-7 h-7 object-contain relative z-10"
           @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
         />
-        <span class="link-initial">{{ getInitial(link.name) }}</span>
+        <span
+          class="absolute text-[1.2rem] font-semibold text-white/60 dark:text-white/60 light:text-slate-600"
+        >
+          {{ getInitial(link.name) }}
+        </span>
       </div>
-      <span class="link-name">{{ link.name }}</span>
+      <span
+        class="text-xs text-center max-w-16 truncate transition-colors duration-150 text-white/50 group-hover:text-white/90 dark:text-white/50 dark:group-hover:text-white/90 light:text-slate-600 light:group-hover:text-slate-900"
+      >
+        {{ link.name }}
+      </span>
     </a>
 
     <!-- Add button -->
-    <button class="link-item add-btn" title="Edit links" @click="emit('edit')">
-      <div class="link-icon add-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button
+      class="group flex flex-col items-center gap-2 bg-transparent border-0 p-0 cursor-pointer"
+      title="Edit links"
+      @click="emit('edit')"
+    >
+      <div
+        class="relative w-14 h-14 rounded-2xl backdrop-blur-xl flex items-center justify-center transition-all duration-200 border-dashed border text-white/40 border-white/20 dark:text-white/40 dark:border-white/20 light:bg-[rgba(255,255,255,0.52)] light:text-slate-500 light:border-[rgba(159,179,212,0.56)] light:[box-shadow:0_14px_28px_rgba(125,148,186,0.12)] group-hover:border-white/40 group-hover:text-white/80 group-hover:-translate-y-0.5 dark:group-hover:border-white/40 dark:group-hover:text-white/80 light:group-hover:bg-[rgba(255,255,255,0.78)] light:group-hover:border-[rgba(118,146,194,0.62)] light:group-hover:text-slate-800 light:group-hover:[box-shadow:0_18px_34px_rgba(117,144,187,0.18)]"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <path d="M12 5v14M5 12h14" />
         </svg>
       </div>
-      <span class="link-name">Add</span>
+      <span
+        class="text-xs text-center max-w-16 truncate transition-colors duration-150 text-white/50 group-hover:text-white/90 dark:text-white/50 dark:group-hover:text-white/90 light:text-slate-600 light:group-hover:text-slate-900"
+      >
+        Add
+      </span>
     </button>
   </div>
 </template>
-
-<style scoped>
-.quick-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  justify-content: center;
-  max-width: 700px;
-}
-
-.link-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  text-decoration: none;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-}
-
-.link-item:hover .link-icon {
-  background: rgba(255, 255, 255, 0.15);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
-.link-item:hover .link-name {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.link-icon {
-  position: relative;
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  overflow: hidden;
-}
-
-.link-icon img {
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-  position: relative;
-  z-index: 1;
-}
-
-.link-initial {
-  position: absolute;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-/* Hide initial when image loads */
-.link-icon img + .link-initial {
-  display: none;
-}
-
-.link-name {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.5);
-  text-align: center;
-  max-width: 64px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: color 0.15s;
-}
-
-/* Add button */
-.add-btn .add-icon {
-  border-style: dashed;
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.add-btn:hover .add-icon {
-  border-color: rgba(255, 255, 255, 0.4);
-  color: rgba(255, 255, 255, 0.8);
-}
-</style>

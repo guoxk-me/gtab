@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import { ref, reactive } from "vue";
+import type { BasicColorSchema } from "@vueuse/core";
 import type { Settings, QuickLink } from "../composables/useStorage";
 
-const props = defineProps<{ settings: Settings }>();
-const emit = defineEmits<{ save: [settings: Settings]; close: [] }>();
+const props = defineProps<{
+  settings: Settings;
+  colorMode: BasicColorSchema;
+}>();
+
+const emit = defineEmits<{
+  save: [settings: Settings];
+  close: [];
+  "update:colorMode": [value: BasicColorSchema];
+}>();
 
 // Local copy to edit
 const local = reactive<Settings>(JSON.parse(JSON.stringify(props.settings)));
@@ -27,7 +36,7 @@ function addLink() {
 }
 
 function removeLink(id: string) {
-  local.quickLinks = local.quickLinks.filter((l) => l.id !== id);
+  local.quickLinks = local.quickLinks.filter((l: QuickLink) => l.id !== id);
 }
 
 function save() {
@@ -40,421 +49,244 @@ const engineLabels: Record<string, string> = {
   baidu: "Baidu",
   duckduckgo: "DuckDuckGo",
 };
+
+const colorModeOptions: { value: BasicColorSchema; label: string; icon: string }[] = [
+  { value: "dark", label: "Dark", icon: "icon-[solar--moon-linear]" },
+  { value: "light", label: "Light", icon: "icon-[solar--sun-2-linear]" },
+  { value: "auto", label: "System", icon: "icon-[solar--monitor-linear]" },
+];
+
+const closeIconClass = "icon-[solar--close-circle-linear]";
 </script>
 
 <template>
-  <div class="panel-overlay" @click.self="emit('close')">
-    <div class="panel">
-      <div class="panel-header">
-        <h2>Settings</h2>
-        <button class="close-btn" @click="emit('close')">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
+  <!-- Overlay -->
+  <div
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-5 light:bg-[rgba(226,235,247,0.55)]"
+    @click.self="emit('close')"
+  >
+    <!-- Panel -->
+    <div
+      class="w-full max-w-[480px] max-h-[80vh] flex flex-col rounded-[20px] shadow-[0_24px_64px_rgba(0,0,0,0.6)] border bg-slate-950/97 border-white/10 dark:bg-slate-950/97 dark:border-white/10 light:bg-[rgba(247,250,255,0.92)] light:border-[rgba(255,255,255,0.82)] light:[box-shadow:var(--light-shadow-panel)]"
+    >
+      <!-- Header -->
+      <div
+        class="flex items-center justify-between px-6 py-5 border-b border-white/8 dark:border-white/8 light:border-[rgba(194,208,231,0.72)]"
+      >
+        <h2 class="text-[1.1rem] font-medium text-white dark:text-white light:text-slate-900">
+          Settings
+        </h2>
+        <button
+          class="flex items-center justify-center w-8 h-8 bg-transparent border-none rounded-lg cursor-pointer transition-all duration-150 text-white/50 hover:bg-white/8 hover:text-white dark:text-white/50 dark:hover:bg-white/8 dark:hover:text-white light:text-slate-500 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-800"
+          @click="emit('close')"
+        >
+          <span :class="[closeIconClass, 'h-[18px] w-[18px]']" aria-hidden="true" />
         </button>
       </div>
 
-      <div class="panel-body">
+      <!-- Body -->
+      <div class="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6 scrollbar-thin">
+        <!-- Appearance -->
+        <section class="flex flex-col gap-3">
+          <h3
+            class="text-xs font-semibold uppercase tracking-[0.1em] text-white/40 dark:text-white/40 light:text-slate-500"
+          >
+            Appearance
+          </h3>
+          <div class="flex gap-2 flex-wrap">
+            <button
+              v-for="opt in colorModeOptions"
+              :key="opt.value"
+              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm cursor-pointer transition-all duration-150 bg-transparent"
+              :class="
+                colorMode === opt.value
+                  ? 'bg-accent/15 border-accent/50 text-accent dark:bg-accent/15 dark:border-accent/50 dark:text-accent light:bg-[rgba(74,122,255,0.1)] light:border-[rgba(120,155,231,0.46)] light:text-accent-light light:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.72)]'
+                  : 'border-white/12 text-white/60 hover:border-white/25 hover:text-white/90 dark:border-white/12 dark:text-white/60 dark:hover:border-white/25 dark:hover:text-white/90 light:border-[rgba(194,208,231,0.82)] light:text-slate-600 light:hover:border-[rgba(133,162,214,0.62)] light:hover:bg-[rgba(255,255,255,0.62)] light:hover:text-slate-800'
+              "
+              @click="emit('update:colorMode', opt.value)"
+            >
+              <span :class="[opt.icon, 'h-4 w-4']" aria-hidden="true" />
+              <span>{{ opt.label }}</span>
+            </button>
+          </div>
+        </section>
+
         <!-- Search Engine -->
-        <section class="section">
-          <h3>Search Engine</h3>
-          <div class="radio-group">
+        <section class="flex flex-col gap-3">
+          <h3
+            class="text-xs font-semibold uppercase tracking-[0.1em] text-white/40 dark:text-white/40 light:text-slate-500"
+          >
+            Search Engine
+          </h3>
+          <div class="flex gap-2 flex-wrap">
             <label
               v-for="(label, key) in engineLabels"
               :key="key"
-              class="radio-item"
-              :class="{ active: local.searchEngine === key }"
+              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm cursor-pointer transition-all duration-150"
+              :class="
+                local.searchEngine === key
+                  ? 'bg-accent/15 border-accent/50 text-accent dark:bg-accent/15 dark:border-accent/50 dark:text-accent light:bg-[rgba(74,122,255,0.1)] light:border-[rgba(120,155,231,0.46)] light:text-accent-light light:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.72)]'
+                  : 'border-white/12 text-white/60 hover:border-white/25 hover:text-white/90 dark:border-white/12 dark:text-white/60 dark:hover:border-white/25 dark:hover:text-white/90 light:border-[rgba(194,208,231,0.82)] light:text-slate-600 light:hover:border-[rgba(133,162,214,0.62)] light:hover:bg-[rgba(255,255,255,0.62)] light:hover:text-slate-800'
+              "
             >
-              <input
-                v-model="local.searchEngine"
-                type="radio"
-                :value="key"
-              />
+              <input v-model="local.searchEngine" type="radio" :value="key" class="hidden" />
               {{ label }}
             </label>
           </div>
         </section>
 
         <!-- Clock -->
-        <section class="section">
-          <h3>Clock</h3>
-          <div class="toggle-row">
+        <section class="flex flex-col gap-1">
+          <h3
+            class="text-xs font-semibold uppercase tracking-[0.1em] mb-2 text-white/40 dark:text-white/40 light:text-slate-500"
+          >
+            Clock
+          </h3>
+          <div
+            class="flex items-center justify-between py-2 text-[0.9rem] text-white/70 dark:text-white/70 light:text-slate-700"
+          >
             <span>Show clock</span>
-            <label class="toggle">
-              <input v-model="local.showClock" type="checkbox" />
-              <span class="toggle-track" />
+            <label class="relative cursor-pointer">
+              <input v-model="local.showClock" type="checkbox" class="sr-only peer" />
+              <span
+                class="block w-10 h-[22px] rounded-full transition-colors duration-200 relative bg-white/15 peer-checked:bg-accent dark:bg-white/15 dark:peer-checked:bg-accent light:bg-[rgba(205,218,238,0.92)] light:peer-checked:bg-accent-light light:[box-shadow:inset_0_1px_1px_rgba(140,160,190,0.25)] after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-transform after:duration-200 after:shadow-[0_2px_8px_rgba(97,120,162,0.24)] peer-checked:after:translate-x-[18px]"
+              />
             </label>
           </div>
-          <div v-if="local.showClock" class="toggle-row">
+          <div
+            v-if="local.showClock"
+            class="flex items-center justify-between py-2 text-[0.9rem] text-white/70 dark:text-white/70 light:text-slate-700"
+          >
             <span>Show seconds</span>
-            <label class="toggle">
-              <input v-model="local.showSeconds" type="checkbox" />
-              <span class="toggle-track" />
+            <label class="relative cursor-pointer">
+              <input v-model="local.showSeconds" type="checkbox" class="sr-only peer" />
+              <span
+                class="block w-10 h-[22px] rounded-full transition-colors duration-200 relative bg-white/15 peer-checked:bg-accent dark:bg-white/15 dark:peer-checked:bg-accent light:bg-[rgba(205,218,238,0.92)] light:peer-checked:bg-accent-light light:[box-shadow:inset_0_1px_1px_rgba(140,160,190,0.25)] after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-transform after:duration-200 after:shadow-[0_2px_8px_rgba(97,120,162,0.24)] peer-checked:after:translate-x-[18px]"
+              />
             </label>
           </div>
         </section>
 
         <!-- Quick Links -->
-        <section class="section">
-          <h3>Quick Links</h3>
-          <div class="links-list">
+        <section class="flex flex-col gap-2">
+          <h3
+            class="text-xs font-semibold uppercase tracking-[0.1em] mb-1 text-white/40 dark:text-white/40 light:text-slate-500"
+          >
+            Quick Links
+          </h3>
+
+          <div class="flex flex-col gap-1 mb-1">
             <div
               v-for="link in local.quickLinks"
               :key="link.id"
-              class="link-row"
+              class="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white/4 dark:bg-white/4 light:bg-[rgba(255,255,255,0.56)] light:border light:border-[rgba(210,221,239,0.8)]"
             >
-              <span class="link-row-name">{{ link.name }}</span>
-              <span class="link-row-url">{{ link.url }}</span>
-              <button class="remove-btn" @click="removeLink(link.id)">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <span
+                class="text-[0.875rem] min-w-20 text-white/80 dark:text-white/80 light:text-slate-700"
+              >
+                {{ link.name }}
+              </span>
+              <span
+                class="flex-1 text-xs overflow-hidden text-ellipsis whitespace-nowrap text-white/35 dark:text-white/35 light:text-slate-500"
+              >
+                {{ link.url }}
+              </span>
+              <button
+                class="flex items-center justify-center w-6 h-6 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 text-white/30 hover:bg-red-500/15 hover:text-red-400 dark:text-white/30 dark:hover:bg-red-500/15 dark:hover:text-red-400 light:text-slate-400 light:hover:bg-red-500/10 light:hover:text-red-500"
+                @click="removeLink(link.id)"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <path d="M18 6 6 18M6 6l12 12" />
                 </svg>
               </button>
             </div>
           </div>
 
-          <div v-if="addingLink" class="add-form">
+          <!-- Add form -->
+          <div
+            v-if="addingLink"
+            class="flex flex-col gap-2 p-3 rounded-[10px] border bg-white/4 border-white/8 dark:bg-white/4 dark:border-white/8 light:bg-[rgba(255,255,255,0.5)] light:border-[rgba(206,218,239,0.82)]"
+          >
             <input
               v-model="newLink.name"
-              class="text-input"
+              class="w-full px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-150 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
               placeholder="Name"
               @keydown.enter="addLink"
               @keydown.escape="addingLink = false"
             />
             <input
               v-model="newLink.url"
-              class="text-input"
+              class="w-full px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-150 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
               placeholder="URL (e.g. github.com)"
               @keydown.enter="addLink"
               @keydown.escape="addingLink = false"
             />
-            <div class="add-form-actions">
-              <button class="btn-secondary" @click="addingLink = false">Cancel</button>
-              <button class="btn-primary" @click="addLink">Add</button>
+            <div class="flex gap-2 justify-end">
+              <button
+                class="px-[18px] py-2 rounded-lg text-[0.875rem] cursor-pointer transition-colors duration-150 border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 dark:bg-white/8 dark:border-white/12 dark:text-white/70 dark:hover:bg-white/12 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(200,214,237,0.84)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.9)]"
+                @click="addingLink = false"
+              >
+                Cancel
+              </button>
+              <button
+                class="px-[18px] py-2 rounded-lg text-[0.875rem] font-semibold cursor-pointer transition-colors duration-150 border-none bg-accent text-slate-950 hover:bg-accent-hover dark:bg-accent dark:text-slate-950 dark:hover:bg-accent-hover light:bg-accent-light light:text-white light:hover:bg-accent-light-hover"
+                @click="addLink"
+              >
+                Add
+              </button>
             </div>
           </div>
-          <button v-else class="btn-ghost" @click="addingLink = true">
+
+          <button
+            v-else
+            class="py-2 bg-transparent border-none text-[0.875rem] cursor-pointer transition-colors duration-150 text-left text-accent/70 hover:text-accent dark:text-accent/70 dark:hover:text-accent light:text-accent-light/80 light:hover:text-accent-light"
+            @click="addingLink = true"
+          >
             + Add link
           </button>
         </section>
       </div>
 
-      <div class="panel-footer">
-        <button class="btn-secondary" @click="emit('close')">Cancel</button>
-        <button class="btn-primary" @click="save">Save</button>
+      <!-- Footer -->
+      <div
+        class="flex gap-2 justify-end px-6 py-4 border-t border-white/8 dark:border-white/8 light:border-[rgba(194,208,231,0.72)]"
+      >
+        <button
+          class="px-[18px] py-2 rounded-lg text-[0.875rem] cursor-pointer transition-colors duration-150 border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 dark:bg-white/8 dark:border-white/12 dark:text-white/70 dark:hover:bg-white/12 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(200,214,237,0.84)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.9)]"
+          @click="emit('close')"
+        >
+          Cancel
+        </button>
+        <button
+          class="px-[18px] py-2 rounded-lg text-[0.875rem] font-semibold cursor-pointer transition-colors duration-150 border-none bg-accent text-slate-950 hover:bg-accent-hover dark:bg-accent dark:text-slate-950 dark:hover:bg-accent-hover light:bg-accent-light light:text-white light:hover:bg-accent-light-hover"
+          @click="save"
+        >
+          Save
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.panel-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.panel {
-  background: rgba(12, 18, 38, 0.97);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  width: 100%;
-  max-width: 480px;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.panel-header h2 {
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: #fff;
-}
-
-.close-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
-  transition: background 0.15s, color 0.15s;
-}
-
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.panel-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.panel-body::-webkit-scrollbar {
+/* Custom scrollbar — cannot be done with Tailwind utilities */
+.scrollbar-thin::-webkit-scrollbar {
   width: 4px;
 }
 
-.panel-body::-webkit-scrollbar-track {
+.scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.panel-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
   border-radius: 2px;
-}
-
-.section h3 {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.4);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 12px;
-}
-
-/* Radio group */
-.radio-group {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.radio-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  cursor: pointer;
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.6);
-  transition: all 0.15s;
-}
-
-.radio-item input {
-  display: none;
-}
-
-.radio-item.active {
-  background: rgba(120, 160, 255, 0.15);
-  border-color: rgba(120, 160, 255, 0.5);
-  color: #7aa0ff;
-}
-
-/* Toggle */
-.toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 0;
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.toggle {
-  position: relative;
-  cursor: pointer;
-}
-
-.toggle input {
-  display: none;
-}
-
-.toggle-track {
-  display: block;
-  width: 40px;
-  height: 22px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 11px;
-  transition: background 0.2s;
-  position: relative;
-}
-
-.toggle-track::after {
-  content: "";
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 16px;
-  height: 16px;
-  background: #fff;
-  border-radius: 50%;
-  transition: transform 0.2s;
-}
-
-.toggle input:checked + .toggle-track {
-  background: #7aa0ff;
-}
-
-.toggle input:checked + .toggle-track::after {
-  transform: translateX(18px);
-}
-
-/* Links list */
-.links-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-
-.link-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.link-row-name {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.8);
-  min-width: 80px;
-}
-
-.link-row-url {
-  flex: 1;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.35);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.remove-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  background: none;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.3);
-  flex-shrink: 0;
-  transition: background 0.15s, color 0.15s;
-}
-
-.remove-btn:hover {
-  background: rgba(255, 80, 80, 0.15);
-  color: #ff6b6b;
-}
-
-/* Add form */
-.add-form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.text-input {
-  width: 100%;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: #fff;
-  font-size: 0.875rem;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.text-input:focus {
-  border-color: rgba(120, 160, 255, 0.5);
-}
-
-.text-input::placeholder {
-  color: rgba(255, 255, 255, 0.25);
-}
-
-.add-form-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-/* Buttons */
-.btn-primary {
-  padding: 8px 18px;
-  background: #7aa0ff;
-  border: none;
-  border-radius: 8px;
-  color: #0a0f2e;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.btn-primary:hover {
-  background: #92b4ff;
-}
-
-.btn-secondary {
-  padding: 8px 18px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.btn-ghost {
-  padding: 8px 0;
-  background: none;
-  border: none;
-  color: rgba(120, 160, 255, 0.7);
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-
-.btn-ghost:hover {
-  color: #7aa0ff;
-}
-
-.panel-footer {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  padding: 16px 24px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 </style>
