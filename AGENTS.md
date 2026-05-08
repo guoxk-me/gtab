@@ -1,15 +1,27 @@
-<!--VITE PLUS START-->
+# Repo Notes
 
-# Using Vite+, the Unified Toolchain for the Web
+- This is a single-package Vue 3 app. `pnpm-workspace.yaml` is only used for Vite+/catalog overrides; there are no workspace packages.
+- Runtime entry flow is `index.html` -> `src/main.ts` -> `src/App.vue`.
+- Main persisted state lives in `src/composables/useStorage.ts` and is stored in `localStorage` under `gtab_settings`.
+- UI is mostly in `src/components/*`; the animated background is `src/canvas/MeteorShower.ts`.
 
-This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, and it invokes Vite through `vp dev` and `vp build`. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
+# Commands
 
-Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.dev/guide/.
+- Install deps with `vp install`.
+- Start dev server with `vp dev`.
+- Run formatting, lint, and type-aware checks with `vp check`.
+- Auto-fix formatting/lint issues with `vp check --fix`.
+- Build the production bundle with `vp build`.
 
-## Review Checklist
+# Validation Gotchas
 
-- [ ] Run `vp install` after pulling remote changes and before getting started.
-- [ ] Run `vp check` and `vp test` to format, lint, type check and test changes.
-- [ ] Check if there are `vite.config.ts` tasks or `package.json` scripts necessary for validation, run via `vp run <script>`.
+- `vite.config.ts` is the main source of tool config. There is no separate ESLint/Prettier/Vitest config in this repo.
+- Pre-commit runs `.vite-hooks/pre-commit` -> `vp staged`.
+- `vp staged` uses the `staged` block in `vite.config.ts`, which currently runs `vp check --fix` for every staged file. Expect commits to rewrite staged files.
+- `vp test run` exits with code 1 when no tests exist; this repo currently has no `*.test.*` or `*.spec.*` files.
+- `package.json` `build` runs `tsc && vp build`. As checked in the current repo state, `tsc` fails because Vue SFC imports do not have a `.vue` module declaration, while `vp build` itself succeeds.
 
-<!--VITE PLUS END-->
+# Editing Notes
+
+- Do not hand-edit `dist/`; it is build output and ignored.
+- If you change settings shape or defaults, update both `Settings`/`defaults` in `src/composables/useStorage.ts` and the settings UI in `src/components/SettingsPanel.vue`.
