@@ -77,22 +77,24 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
 <template>
   <!-- Overlay -->
   <div
-    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-5 light:bg-[rgba(226,235,247,0.55)]"
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-5 transition-colors duration-500 light:bg-[rgba(226,235,247,0.55)]"
     @click.self="emit('close')"
   >
     <!-- Panel -->
     <div
-      class="w-full max-w-[480px] max-h-[80vh] flex flex-col rounded-[20px] shadow-[0_24px_64px_rgba(0,0,0,0.6)] border bg-slate-950/97 border-white/10 dark:bg-slate-950/97 dark:border-white/10 light:bg-[rgba(247,250,255,0.92)] light:border-[rgba(255,255,255,0.82)] light:[box-shadow:var(--light-shadow-panel)]"
+      class="w-full max-w-[480px] max-h-[80vh] flex flex-col rounded-[20px] shadow-[0_24px_64px_rgba(0,0,0,0.6)] border transition-colors duration-500 bg-slate-950/97 border-white/10 dark:bg-slate-950/97 dark:border-white/10 light:bg-[rgba(247,250,255,0.92)] light:border-[rgba(255,255,255,0.82)] light:[box-shadow:var(--light-shadow-panel)]"
     >
       <!-- Header -->
       <div
-        class="flex items-center justify-between px-6 py-5 border-b border-white/8 dark:border-white/8 light:border-[rgba(194,208,231,0.72)]"
+        class="flex items-center justify-between px-6 py-5 border-b transition-colors duration-500 border-white/8 dark:border-white/8 light:border-[rgba(194,208,231,0.72)]"
       >
-        <h2 class="text-[1.1rem] font-medium text-white dark:text-white light:text-slate-900">
+        <h2
+          class="text-[1.1rem] font-medium transition-colors duration-500 text-white dark:text-white light:text-slate-900"
+        >
           {{ t("settings.title") }}
         </h2>
         <button
-          class="flex items-center justify-center w-8 h-8 bg-transparent border-none rounded-lg cursor-pointer transition-all duration-150 text-white/50 hover:bg-white/8 hover:text-white dark:text-white/50 dark:hover:bg-white/8 dark:hover:text-white light:text-slate-500 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-800"
+          class="flex items-center justify-center w-8 h-8 bg-transparent border-none rounded-lg cursor-pointer transition-all duration-150 transition-colors duration-500 text-white/50 hover:bg-white/8 hover:text-white dark:text-white/50 dark:hover:bg-white/8 dark:hover:text-white light:text-slate-500 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-800"
           @click="emit('close')"
         >
           <span :class="[closeIconClass, 'h-[18px] w-[18px]']" aria-hidden="true" />
@@ -104,7 +106,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
         <!-- Appearance -->
         <section class="flex flex-col gap-3">
           <h3
-            class="text-xs font-semibold uppercase tracking-[0.1em] text-white/40 dark:text-white/40 light:text-slate-500"
+            class="text-xs font-semibold uppercase tracking-[0.1em] transition-colors duration-500 text-white/40 dark:text-white/40 light:text-slate-500"
           >
             {{ t("appearance.title") }}
           </h3>
@@ -112,7 +114,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
             <button
               v-for="opt in colorModeOptions"
               :key="opt.value"
-              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm cursor-pointer transition-all duration-150 bg-transparent"
+              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm cursor-pointer transition-all duration-150 transition-colors duration-500 bg-transparent"
               :class="
                 colorMode === opt.value
                   ? 'bg-accent/15 border-accent/50 text-accent dark:bg-accent/15 dark:border-accent/50 dark:text-accent light:bg-[rgba(74,122,255,0.1)] light:border-[rgba(120,155,231,0.46)] light:text-accent-light light:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.72)]'
@@ -128,7 +130,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
 
         <section class="flex flex-col gap-3">
           <h3
-            class="text-xs font-semibold uppercase tracking-[0.1em] text-white/40 dark:text-white/40 light:text-slate-500"
+            class="text-xs font-semibold uppercase tracking-[0.1em] transition-colors duration-500 text-white/40 dark:text-white/40 light:text-slate-500"
           >
             {{ t("language.title") }}
           </h3>
@@ -136,7 +138,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
             <label
               v-for="option in languageOptions"
               :key="option.value"
-              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm cursor-pointer transition-all duration-150"
+              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm cursor-pointer transition-all duration-150 transition-colors duration-500"
               :class="
                 local.language === option.value
                   ? 'bg-accent/15 border-accent/50 text-accent dark:bg-accent/15 dark:border-accent/50 dark:text-accent light:bg-[rgba(74,122,255,0.1)] light:border-[rgba(120,155,231,0.46)] light:text-accent-light light:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.72)]'
@@ -158,7 +160,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
         <!-- Search Engine -->
         <section class="flex flex-col gap-3">
           <h3
-            class="text-xs font-semibold uppercase tracking-[0.1em] text-white/40 dark:text-white/40 light:text-slate-500"
+            class="text-xs font-semibold uppercase tracking-[0.1em] transition-colors duration-500 text-white/40 dark:text-white/40 light:text-slate-500"
           >
             {{ t("settings.searchEngine") }}
           </h3>
@@ -166,7 +168,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
             <label
               v-for="(label, key) in engineLabels"
               :key="key"
-              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm cursor-pointer transition-all duration-150"
+              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm cursor-pointer transition-all duration-150 transition-colors duration-500"
               :class="
                 local.searchEngine === key
                   ? 'bg-accent/15 border-accent/50 text-accent dark:bg-accent/15 dark:border-accent/50 dark:text-accent light:bg-[rgba(74,122,255,0.1)] light:border-[rgba(120,155,231,0.46)] light:text-accent-light light:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.72)]'
@@ -182,30 +184,30 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
         <!-- Clock -->
         <section class="flex flex-col gap-1">
           <h3
-            class="text-xs font-semibold uppercase tracking-[0.1em] mb-2 text-white/40 dark:text-white/40 light:text-slate-500"
+            class="text-xs font-semibold uppercase tracking-[0.1em] mb-2 transition-colors duration-500 text-white/40 dark:text-white/40 light:text-slate-500"
           >
             {{ t("settings.clock") }}
           </h3>
           <div
-            class="flex items-center justify-between py-2 text-[0.9rem] text-white/70 dark:text-white/70 light:text-slate-700"
+            class="flex items-center justify-between py-2 text-[0.9rem] transition-colors duration-500 text-white/70 dark:text-white/70 light:text-slate-700"
           >
             <span>{{ t("settings.showClock") }}</span>
             <label class="relative cursor-pointer">
               <input v-model="local.showClock" type="checkbox" class="sr-only peer" />
               <span
-                class="block w-10 h-[22px] rounded-full transition-colors duration-200 relative bg-white/15 peer-checked:bg-accent dark:bg-white/15 dark:peer-checked:bg-accent light:bg-[rgba(205,218,238,0.92)] light:peer-checked:bg-accent-light light:[box-shadow:inset_0_1px_1px_rgba(140,160,190,0.25)] after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-transform after:duration-200 after:shadow-[0_2px_8px_rgba(97,120,162,0.24)] peer-checked:after:translate-x-[18px]"
+                class="block w-10 h-[22px] rounded-full transition-colors duration-500 relative bg-white/15 peer-checked:bg-accent dark:bg-white/15 dark:peer-checked:bg-accent light:bg-[rgba(205,218,238,0.92)] light:peer-checked:bg-accent-light light:[box-shadow:inset_0_1px_1px_rgba(140,160,190,0.25)] after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-transform after:duration-200 after:shadow-[0_2px_8px_rgba(97,120,162,0.24)] peer-checked:after:translate-x-[18px]"
               />
             </label>
           </div>
           <div
             v-if="local.showClock"
-            class="flex items-center justify-between py-2 text-[0.9rem] text-white/70 dark:text-white/70 light:text-slate-700"
+            class="flex items-center justify-between py-2 text-[0.9rem] transition-colors duration-500 text-white/70 dark:text-white/70 light:text-slate-700"
           >
             <span>{{ t("settings.showSeconds") }}</span>
             <label class="relative cursor-pointer">
               <input v-model="local.showSeconds" type="checkbox" class="sr-only peer" />
               <span
-                class="block w-10 h-[22px] rounded-full transition-colors duration-200 relative bg-white/15 peer-checked:bg-accent dark:bg-white/15 dark:peer-checked:bg-accent light:bg-[rgba(205,218,238,0.92)] light:peer-checked:bg-accent-light light:[box-shadow:inset_0_1px_1px_rgba(140,160,190,0.25)] after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-transform after:duration-200 after:shadow-[0_2px_8px_rgba(97,120,162,0.24)] peer-checked:after:translate-x-[18px]"
+                class="block w-10 h-[22px] rounded-full transition-colors duration-500 relative bg-white/15 peer-checked:bg-accent dark:bg-white/15 dark:peer-checked:bg-accent light:bg-[rgba(205,218,238,0.92)] light:peer-checked:bg-accent-light light:[box-shadow:inset_0_1px_1px_rgba(140,160,190,0.25)] after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-transform after:duration-200 after:shadow-[0_2px_8px_rgba(97,120,162,0.24)] peer-checked:after:translate-x-[18px]"
               />
             </label>
           </div>
@@ -214,7 +216,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
         <!-- Quick Links -->
         <section class="flex flex-col gap-2">
           <h3
-            class="text-xs font-semibold uppercase tracking-[0.1em] mb-1 text-white/40 dark:text-white/40 light:text-slate-500"
+            class="text-xs font-semibold uppercase tracking-[0.1em] mb-1 transition-colors duration-500 text-white/40 dark:text-white/40 light:text-slate-500"
           >
             {{ t("settings.quickLinks") }}
           </h3>
@@ -223,20 +225,20 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
             <div
               v-for="link in local.quickLinks"
               :key="link.id"
-              class="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white/4 dark:bg-white/4 light:bg-[rgba(255,255,255,0.56)] light:border light:border-[rgba(210,221,239,0.8)]"
+              class="flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors duration-500 bg-white/4 dark:bg-white/4 light:bg-[rgba(255,255,255,0.56)] light:border light:border-[rgba(210,221,239,0.8)]"
             >
               <span
-                class="text-[0.875rem] min-w-20 text-white/80 dark:text-white/80 light:text-slate-700"
+                class="text-[0.875rem] min-w-20 transition-colors duration-500 text-white/80 dark:text-white/80 light:text-slate-700"
               >
                 {{ link.name }}
               </span>
               <span
-                class="flex-1 text-xs overflow-hidden text-ellipsis whitespace-nowrap text-white/35 dark:text-white/35 light:text-slate-500"
+                class="flex-1 text-xs overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-500 text-white/35 dark:text-white/35 light:text-slate-500"
               >
                 {{ link.url }}
               </span>
               <button
-                class="flex items-center justify-center w-6 h-6 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 text-white/30 hover:bg-red-500/15 hover:text-red-400 dark:text-white/30 dark:hover:bg-red-500/15 dark:hover:text-red-400 light:text-slate-400 light:hover:bg-red-500/10 light:hover:text-red-500"
+                class="flex items-center justify-center w-6 h-6 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-red-500/15 hover:text-red-400 dark:text-white/30 dark:hover:bg-red-500/15 dark:hover:text-red-400 light:text-slate-400 light:hover:bg-red-500/10 light:hover:text-red-500"
                 @click="removeLink(link.id)"
               >
                 <svg
@@ -256,31 +258,31 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
           <!-- Add form -->
           <div
             v-if="addingLink"
-            class="flex flex-col gap-2 p-3 rounded-[10px] border bg-white/4 border-white/8 dark:bg-white/4 dark:border-white/8 light:bg-[rgba(255,255,255,0.5)] light:border-[rgba(206,218,239,0.82)]"
+            class="flex flex-col gap-2 p-3 rounded-[10px] border transition-colors duration-500 bg-white/4 border-white/8 dark:bg-white/4 dark:border-white/8 light:bg-[rgba(255,255,255,0.5)] light:border-[rgba(206,218,239,0.82)]"
           >
             <input
               v-model="newLink.name"
-              class="w-full px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-150 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+              class="w-full px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
               :placeholder="t('settings.linkName')"
               @keydown.enter="addLink"
               @keydown.escape="addingLink = false"
             />
             <input
               v-model="newLink.url"
-              class="w-full px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-150 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+              class="w-full px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
               :placeholder="t('settings.linkUrl')"
               @keydown.enter="addLink"
               @keydown.escape="addingLink = false"
             />
             <div class="flex gap-2 justify-end">
               <button
-                class="px-[18px] py-2 rounded-lg text-[0.875rem] cursor-pointer transition-colors duration-150 border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 dark:bg-white/8 dark:border-white/12 dark:text-white/70 dark:hover:bg-white/12 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(200,214,237,0.84)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.9)]"
+                class="px-[18px] py-2 rounded-lg text-[0.875rem] cursor-pointer transition-colors duration-500 border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 dark:bg-white/8 dark:border-white/12 dark:text-white/70 dark:hover:bg-white/12 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(200,214,237,0.84)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.9)]"
                 @click="addingLink = false"
               >
                 {{ t("common.cancel") }}
               </button>
               <button
-                class="px-[18px] py-2 rounded-lg text-[0.875rem] font-semibold cursor-pointer transition-colors duration-150 border-none bg-accent text-slate-950 hover:bg-accent-hover dark:bg-accent dark:text-slate-950 dark:hover:bg-accent-hover light:bg-accent-light light:text-white light:hover:bg-accent-light-hover"
+                class="px-[18px] py-2 rounded-lg text-[0.875rem] font-semibold cursor-pointer transition-colors duration-500 border-none bg-accent text-slate-950 hover:bg-accent-hover dark:bg-accent dark:text-slate-950 dark:hover:bg-accent-hover light:bg-accent-light light:text-white light:hover:bg-accent-light-hover"
                 @click="addLink"
               >
                 {{ t("common.add") }}
@@ -290,7 +292,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
 
           <button
             v-else
-            class="py-2 bg-transparent border-none text-[0.875rem] cursor-pointer transition-colors duration-150 text-left text-accent/70 hover:text-accent dark:text-accent/70 dark:hover:text-accent light:text-accent-light/80 light:hover:text-accent-light"
+            class="py-2 bg-transparent border-none text-[0.875rem] cursor-pointer transition-colors duration-500 text-left text-accent/70 hover:text-accent dark:text-accent/70 dark:hover:text-accent light:text-accent-light/80 light:hover:text-accent-light"
             @click="addingLink = true"
           >
             + {{ t("settings.addLink") }}
@@ -300,16 +302,16 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
 
       <!-- Footer -->
       <div
-        class="flex gap-2 justify-end px-6 py-4 border-t border-white/8 dark:border-white/8 light:border-[rgba(194,208,231,0.72)]"
+        class="flex gap-2 justify-end px-6 py-4 border-t transition-colors duration-500 border-white/8 dark:border-white/8 light:border-[rgba(194,208,231,0.72)]"
       >
         <button
-          class="px-[18px] py-2 rounded-lg text-[0.875rem] cursor-pointer transition-colors duration-150 border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 dark:bg-white/8 dark:border-white/12 dark:text-white/70 dark:hover:bg-white/12 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(200,214,237,0.84)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.9)]"
+          class="px-[18px] py-2 rounded-lg text-[0.875rem] cursor-pointer transition-colors duration-500 border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 dark:bg-white/8 dark:border-white/12 dark:text-white/70 dark:hover:bg-white/12 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(200,214,237,0.84)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.9)]"
           @click="emit('close')"
         >
           {{ t("common.cancel") }}
         </button>
         <button
-          class="px-[18px] py-2 rounded-lg text-[0.875rem] font-semibold cursor-pointer transition-colors duration-150 border-none bg-accent text-slate-950 hover:bg-accent-hover dark:bg-accent dark:text-slate-950 dark:hover:bg-accent-hover light:bg-accent-light light:text-white light:hover:bg-accent-light-hover"
+          class="px-[18px] py-2 rounded-lg text-[0.875rem] font-semibold cursor-pointer transition-colors duration-500 border-none bg-accent text-slate-950 hover:bg-accent-hover dark:bg-accent dark:text-slate-950 dark:hover:bg-accent-hover light:bg-accent-light light:text-white light:hover:bg-accent-light-hover"
           @click="save"
         >
           {{ t("common.save") }}

@@ -38,7 +38,7 @@ function selectEngine(key: keyof typeof engines) {
   <div class="relative w-full max-w-[600px]">
     <!-- Search box -->
     <div
-      class="flex items-center rounded-full backdrop-blur-2xl overflow-hidden border transition-all duration-200 bg-white/10 border-white/15 dark:bg-white/10 dark:border-white/15 light:bg-[rgba(255,255,255,0.68)] light:border-[rgba(255,255,255,0.76)] light:[box-shadow:var(--light-shadow-float)] focus-within:border-accent/50 focus-within:shadow-[0_0_0_3px_rgba(120,160,255,0.15)] dark:focus-within:border-accent/50 light:focus-within:border-[rgba(139,170,226,0.62)] light:focus-within:[box-shadow:var(--light-ring),0_22px_44px_rgba(117,144,187,0.22),inset_0_1px_0_rgba(255,255,255,0.82)]"
+      class="flex items-center rounded-full backdrop-blur-2xl overflow-hidden border transition-all duration-200 transition-colors duration-500 bg-white/10 border-white/15 dark:bg-white/10 dark:border-white/15 light:bg-[rgba(255,255,255,0.68)] light:border-[rgba(255,255,255,0.76)] light:[box-shadow:var(--light-shadow-float)] focus-within:border-accent/50 focus-within:shadow-[0_0_0_3px_rgba(120,160,255,0.15)] dark:focus-within:border-accent/50 light:focus-within:border-[rgba(139,170,226,0.62)] light:focus-within:[box-shadow:var(--light-ring),0_22px_44px_rgba(117,144,187,0.22),inset_0_1px_0_rgba(255,255,255,0.82)]"
     >
       <!-- Engine selector -->
       <button
@@ -47,7 +47,7 @@ function selectEngine(key: keyof typeof engines) {
         @click="showEngineMenu = !showEngineMenu"
       >
         <span
-          class="text-[0.85rem] font-semibold text-white/70 dark:text-white/70 light:text-slate-900"
+          class="text-[0.85rem] font-semibold transition-colors duration-500 text-white/70 dark:text-white/70 light:text-slate-900"
         >
           {{ engines[engine].icon }}
         </span>
@@ -56,7 +56,7 @@ function selectEngine(key: keyof typeof engines) {
       <!-- Input -->
       <input
         v-model="query"
-        class="flex-1 h-11 bg-transparent border-none outline-none text-base px-2 text-white placeholder:text-white/30 dark:text-white dark:placeholder:text-white/30 light:text-slate-900 light:placeholder:text-slate-500/80"
+        class="flex-1 h-11 bg-transparent border-none outline-none text-base px-2 transition-colors duration-500 text-white placeholder:text-white/30 dark:text-white dark:placeholder:text-white/30 light:text-slate-900 light:placeholder:text-slate-500/80"
         type="text"
         :placeholder="t('search.placeholder')"
         autofocus
@@ -66,7 +66,7 @@ function selectEngine(key: keyof typeof engines) {
 
       <!-- Search button -->
       <button
-        class="flex items-center justify-center w-11 h-11 bg-transparent border-none cursor-pointer flex-shrink-0 rounded-r-full transition-all duration-150 text-white/50 hover:text-white hover:bg-white/8 dark:text-white/50 dark:hover:text-white dark:hover:bg-white/8 light:text-slate-500 light:hover:text-slate-900 light:hover:bg-[rgba(109,141,196,0.08)]"
+        class="flex items-center justify-center w-11 h-11 bg-transparent border-none cursor-pointer flex-shrink-0 rounded-r-full transition-all duration-150 transition-colors duration-500 text-white/50 hover:text-white hover:bg-white/8 dark:text-white/50 dark:hover:text-white dark:hover:bg-white/8 light:text-slate-500 light:hover:text-slate-900 light:hover:bg-[rgba(109,141,196,0.08)]"
         :title="t('search.submit')"
         @click="search"
       >
@@ -88,12 +88,12 @@ function selectEngine(key: keyof typeof engines) {
     <Transition name="dropdown">
       <div
         v-if="showEngineMenu"
-        class="absolute top-[calc(100%+8px)] left-0 rounded-xl backdrop-blur-xl border p-1.5 min-w-40 z-[100] shadow-[0_8px_32px_rgba(0,0,0,0.4)] bg-slate-900/95 border-white/12 dark:bg-slate-900/95 dark:border-white/12 light:bg-[rgba(248,251,255,0.84)] light:border-[rgba(255,255,255,0.78)] light:[box-shadow:0_20px_46px_rgba(116,138,176,0.2),inset_0_1px_0_rgba(255,255,255,0.84)]"
+        class="absolute top-[calc(100%+8px)] left-0 rounded-xl backdrop-blur-xl border p-1.5 min-w-40 z-[100] shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-colors duration-500 bg-slate-900/95 border-white/12 dark:bg-slate-900/95 dark:border-white/12 light:bg-[rgba(248,251,255,0.84)] light:border-[rgba(255,255,255,0.78)] light:[box-shadow:0_20px_46px_rgba(116,138,176,0.2),inset_0_1px_0_rgba(255,255,255,0.84)]"
       >
         <button
           v-for="(eng, key) in engines"
           :key="key"
-          class="flex items-center gap-2.5 w-full px-3 py-2 bg-transparent border-none rounded-lg cursor-pointer text-[0.9rem] transition-all duration-150 text-left text-white/70 hover:bg-white/8 hover:text-white dark:text-white/70 dark:hover:bg-white/8 dark:hover:text-white light:text-slate-600 light:hover:bg-[rgba(109,141,196,0.1)] light:hover:text-slate-900"
+          class="flex items-center gap-2.5 w-full px-3 py-2 bg-transparent border-none rounded-lg cursor-pointer text-[0.9rem] transition-all duration-150 transition-colors duration-500 text-left text-white/70 hover:bg-white/8 hover:text-white dark:text-white/70 dark:hover:bg-white/8 dark:hover:text-white light:text-slate-600 light:hover:bg-[rgba(109,141,196,0.1)] light:hover:text-slate-900"
           :class="
             key === engine
               ? 'text-accent bg-accent/10 dark:text-accent dark:bg-accent/10 light:text-accent-light light:bg-[rgba(74,122,255,0.12)]'
