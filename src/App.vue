@@ -108,7 +108,7 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
 <template>
   <div
     class="relative w-full h-full transition-colors duration-500"
-    :class="isDarkTheme ? 'bg-[#121936]' : 'bg-[#c4d8f0]'"
+    :class="isDarkTheme ? 'bg-[#090f24]' : 'bg-[#c4d8f0]'"
   >
     <canvas ref="canvasRef" class="absolute inset-0 w-full h-full" />
 

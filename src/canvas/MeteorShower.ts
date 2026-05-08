@@ -52,9 +52,9 @@ interface ThemePalette {
 
 const THEME_PALETTES: Record<BackgroundTheme, ThemePalette> = {
   dark: {
-    backgroundTop: [48, 52, 104, 1],
-    backgroundMid: [29, 39, 78, 1],
-    backgroundBottom: [18, 25, 46, 1],
+    backgroundTop: [31, 36, 78, 1],
+    backgroundMid: [18, 24, 52, 1],
+    backgroundBottom: [9, 13, 28, 1],
     topGlowInner: [170, 188, 255, 0.08],
     topGlowMid: [118, 138, 210, 0.04],
     topGlowOuter: [0, 0, 0, 0],
