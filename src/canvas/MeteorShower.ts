@@ -304,20 +304,6 @@ export class MeteorShower {
     ctx.fillStyle = lightBand;
     ctx.fillRect(0, 0, width, height);
 
-    const nebula = ctx.createRadialGradient(
-      width * 0.18,
-      height * 0.22,
-      0,
-      width * 0.18,
-      height * 0.22,
-      width * 0.45,
-    );
-    nebula.addColorStop(0, toRgba(palette.nebulaInner));
-    nebula.addColorStop(0.5, toRgba(palette.nebulaMid));
-    nebula.addColorStop(1, toRgba(palette.nebulaOuter));
-    ctx.fillStyle = nebula;
-    ctx.fillRect(0, 0, width, height);
-
     const horizon = ctx.createLinearGradient(0, height * 0.72, 0, height);
     horizon.addColorStop(0, toRgba(palette.horizonTop));
     horizon.addColorStop(0.6, toRgba(palette.horizonMid));
