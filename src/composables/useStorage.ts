@@ -2,7 +2,6 @@ export interface QuickLink {
   id: string;
   name: string;
   url: string;
-  icon?: string;
 }
 
 export type LanguageSetting = "auto" | "zh-CN" | "en-US";
@@ -23,19 +22,9 @@ const defaults: Settings = {
   showClock: true,
   showSeconds: true,
   quickLinks: [
-    { id: "1", name: "GitHub", url: "https://github.com", icon: "https://github.com/favicon.ico" },
-    {
-      id: "2",
-      name: "YouTube",
-      url: "https://youtube.com",
-      icon: "https://youtube.com/favicon.ico",
-    },
-    {
-      id: "3",
-      name: "Gmail",
-      url: "https://mail.google.com",
-      icon: "https://mail.google.com/favicon.ico",
-    },
+    { id: "1", name: "GitHub", url: "https://github.com" },
+    { id: "2", name: "YouTube", url: "https://youtube.com" },
+    { id: "3", name: "Gmail", url: "https://mail.google.com" },
   ],
 };
 
