@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
+import type { AppLocale } from "../i18n";
 
-const props = defineProps<{ showSeconds?: boolean }>();
+const props = defineProps<{ showSeconds?: boolean; locale: AppLocale }>();
 
 const time = ref("");
 const date = ref("");
@@ -13,22 +14,11 @@ function update() {
   const s = String(now.getSeconds()).padStart(2, "0");
   time.value = props.showSeconds ? `${h}:${m}:${s}` : `${h}:${m}`;
 
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  date.value = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
+  date.value = new Intl.DateTimeFormat(props.locale, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(now);
 }
 
 let timer: ReturnType<typeof setInterval>;

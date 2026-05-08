@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 const props = defineProps<{
   engine: "google" | "bing" | "baidu" | "duckduckgo";
@@ -10,6 +11,7 @@ const emit = defineEmits<{
 }>();
 
 const query = ref("");
+const { t } = useI18n();
 
 const engines = {
   google: { name: "Google", url: "https://www.google.com/search?q=", icon: "G" },
@@ -56,7 +58,7 @@ function selectEngine(key: keyof typeof engines) {
         v-model="query"
         class="flex-1 h-11 bg-transparent border-none outline-none text-base px-2 text-white placeholder:text-white/30 dark:text-white dark:placeholder:text-white/30 light:text-slate-900 light:placeholder:text-slate-500/80"
         type="text"
-        placeholder="Search..."
+        :placeholder="t('search.placeholder')"
         autofocus
         @keydown.enter="search"
         @keydown.escape="query = ''"
@@ -65,6 +67,7 @@ function selectEngine(key: keyof typeof engines) {
       <!-- Search button -->
       <button
         class="flex items-center justify-center w-11 h-11 bg-transparent border-none cursor-pointer flex-shrink-0 rounded-r-full transition-all duration-150 text-white/50 hover:text-white hover:bg-white/8 dark:text-white/50 dark:hover:text-white dark:hover:bg-white/8 light:text-slate-500 light:hover:text-slate-900 light:hover:bg-[rgba(109,141,196,0.08)]"
+        :title="t('search.submit')"
         @click="search"
       >
         <svg

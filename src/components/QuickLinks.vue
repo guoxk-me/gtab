@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import type { QuickLink } from "../composables/useStorage";
 
 defineProps<{ links: QuickLink[] }>();
 const emit = defineEmits<{ edit: [] }>();
+const { t } = useI18n();
 
 function getFaviconUrl(url: string): string {
   try {
@@ -52,7 +54,7 @@ function getInitial(name: string): string {
     <!-- Add button -->
     <button
       class="group flex flex-col items-center gap-2 bg-transparent border-0 p-0 cursor-pointer"
-      title="Edit links"
+      :title="t('quickLinks.edit')"
       @click="emit('edit')"
     >
       <div
@@ -72,7 +74,7 @@ function getInitial(name: string): string {
       <span
         class="text-xs text-center max-w-16 truncate transition-colors duration-150 text-white/50 group-hover:text-white/90 dark:text-white/50 dark:group-hover:text-white/90 light:text-slate-600 light:group-hover:text-slate-900"
       >
-        Add
+        {{ t("common.add") }}
       </span>
     </button>
   </div>

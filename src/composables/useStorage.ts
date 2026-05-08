@@ -5,7 +5,10 @@ export interface QuickLink {
   icon?: string;
 }
 
+export type LanguageSetting = "auto" | "zh-CN" | "en-US";
+
 export interface Settings {
+  language: LanguageSetting;
   searchEngine: "google" | "bing" | "baidu" | "duckduckgo";
   showClock: boolean;
   showSeconds: boolean;
@@ -15,6 +18,7 @@ export interface Settings {
 const STORAGE_KEY = "gtab_settings";
 
 const defaults: Settings = {
+  language: "auto",
   searchEngine: "google",
   showClock: true,
   showSeconds: true,
