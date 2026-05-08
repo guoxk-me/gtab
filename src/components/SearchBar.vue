@@ -14,10 +14,30 @@ const query = ref("");
 const { t } = useI18n();
 
 const engines = {
-  google: { name: "Google", url: "https://www.google.com/search?q=", icon: "G" },
-  bing: { name: "Bing", url: "https://www.bing.com/search?q=", icon: "B" },
-  baidu: { name: "Baidu", url: "https://www.baidu.com/s?wd=", icon: "百" },
-  duckduckgo: { name: "DuckDuckGo", url: "https://duckduckgo.com/?q=", icon: "D" },
+  google: {
+    name: "Google",
+    url: "https://www.google.com/search?q=",
+    icon: "icon-[logos--google-icon]",
+    favicon: "",
+  },
+  bing: {
+    name: "Bing",
+    url: "https://www.bing.com/search?q=",
+    icon: "icon-[logos--bing]",
+    favicon: "",
+  },
+  baidu: {
+    name: "Baidu",
+    url: "https://www.baidu.com/s?wd=",
+    icon: "",
+    favicon: "https://www.baidu.com/favicon.ico",
+  },
+  duckduckgo: {
+    name: "DuckDuckGo",
+    url: "https://duckduckgo.com/?q=",
+    icon: "icon-[logos--duckduckgo]",
+    favicon: "",
+  },
 };
 
 const showEngineMenu = ref(false);
@@ -46,11 +66,13 @@ function selectEngine(key: keyof typeof engines) {
         :title="engines[engine].name"
         @click="showEngineMenu = !showEngineMenu"
       >
-        <span
-          class="text-[0.85rem] font-semibold transition-colors duration-500 text-white/70 dark:text-white/70 light:text-slate-900"
-        >
-          {{ engines[engine].icon }}
-        </span>
+        <span v-if="engines[engine].icon" :class="[engines[engine].icon, 'w-[18px] h-[18px]']" />
+        <img
+          v-else
+          :src="engines[engine].favicon"
+          class="w-[18px] h-[18px] object-contain"
+          :alt="engines[engine].name"
+        />
       </button>
 
       <!-- Input -->
@@ -101,7 +123,13 @@ function selectEngine(key: keyof typeof engines) {
           "
           @click="selectEngine(key as keyof typeof engines)"
         >
-          <span class="text-[0.8rem] font-bold w-5 text-center">{{ eng.icon }}</span>
+          <span v-if="eng.icon" :class="[eng.icon, 'w-[18px] h-[18px] flex-shrink-0']" />
+          <img
+            v-else
+            :src="eng.favicon"
+            class="w-[18px] h-[18px] object-contain flex-shrink-0"
+            :alt="eng.name"
+          />
           <span>{{ eng.name }}</span>
         </button>
       </div>
