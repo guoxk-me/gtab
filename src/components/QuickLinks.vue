@@ -1,18 +1,14 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
 import type { QuickLink } from "../composables/useStorage";
+import { getKnownQuickLinkIcon } from "../composables/quickLinkIcons";
 
 defineProps<{ links: QuickLink[] }>();
 const emit = defineEmits<{ edit: [] }>();
 const { t } = useI18n();
 
-function getFaviconUrl(url: string): string {
-  try {
-    const origin = new URL(url).origin;
-    return `https://www.google.com/s2/favicons?domain=${origin}&sz=64`;
-  } catch {
-    return "";
-  }
+function getIconClass(link: QuickLink): string {
+  return getKnownQuickLinkIcon(link.url);
 }
 
 function getInitial(name: string): string {
@@ -32,13 +28,9 @@ function getInitial(name: string): string {
       <div
         class="relative w-14 h-14 rounded-2xl backdrop-blur-xl flex items-center justify-center transition-all duration-200 transition-colors duration-500 overflow-hidden border bg-white/10 border-white/15 dark:bg-white/10 dark:border-white/15 light:bg-[rgba(255,255,255,0.66)] light:border-[rgba(255,255,255,0.76)] light:[box-shadow:var(--light-shadow-soft)] group-hover:bg-white/18 group-hover:-translate-y-0.5 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)] dark:group-hover:bg-white/18 light:group-hover:bg-[rgba(255,255,255,0.82)] light:group-hover:border-[rgba(255,255,255,0.88)] light:group-hover:[box-shadow:0_18px_34px_rgba(117,144,187,0.22),inset_0_1px_0_rgba(255,255,255,0.84)]"
       >
-        <img
-          :src="getFaviconUrl(link.url)"
-          :alt="link.name"
-          class="w-7 h-7 object-contain relative z-10"
-          @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
-        />
+        <span v-if="getIconClass(link)" :class="[getIconClass(link), 'h-7 w-7 relative z-10']" />
         <span
+          v-else
           class="absolute text-[1.2rem] font-semibold transition-colors duration-500 text-white/60 dark:text-white/60 light:text-slate-600"
         >
           {{ getInitial(link.name) }}
