@@ -34,7 +34,8 @@ onUnmounted(() => clearInterval(timer));
 <template>
   <div class="text-center select-none">
     <div
-      class="text-[clamp(4rem,10vw,8rem)] font-thin tracking-[0.05em] leading-none transition-[color,text-shadow] duration-500 text-white dark:text-white light:text-slate-900 [text-shadow:0_0_40px_rgba(120,160,255,0.4),0_2px_8px_rgba(0,0,0,0.5)] dark:[text-shadow:0_0_40px_rgba(120,160,255,0.4),0_2px_8px_rgba(0,0,0,0.5)] light:[text-shadow:0_12px_24px_rgba(255,255,255,0.58),0_2px_10px_rgba(116,138,176,0.18)]"
+      class="clock-time inline-block text-[clamp(4rem,10vw,8rem)] font-[320] tracking-[0.02em] leading-none whitespace-nowrap transition-[color,text-shadow] duration-500 text-white dark:text-white light:text-slate-900 [text-shadow:0_0_40px_rgba(120,160,255,0.4),0_2px_8px_rgba(0,0,0,0.5)] dark:[text-shadow:0_0_40px_rgba(120,160,255,0.4),0_2px_8px_rgba(0,0,0,0.5)] light:[text-shadow:0_12px_24px_rgba(255,255,255,0.58),0_2px_10px_rgba(116,138,176,0.18)]"
+      :style="{ minWidth: showSeconds ? '8ch' : '5ch' }"
     >
       {{ time }}
     </div>
