@@ -20,8 +20,18 @@ const defaults: Settings = {
   showSeconds: true,
   quickLinks: [
     { id: "1", name: "GitHub", url: "https://github.com", icon: "https://github.com/favicon.ico" },
-    { id: "2", name: "YouTube", url: "https://youtube.com", icon: "https://youtube.com/favicon.ico" },
-    { id: "3", name: "Gmail", url: "https://mail.google.com", icon: "https://mail.google.com/favicon.ico" },
+    {
+      id: "2",
+      name: "YouTube",
+      url: "https://youtube.com",
+      icon: "https://youtube.com/favicon.ico",
+    },
+    {
+      id: "3",
+      name: "Gmail",
+      url: "https://mail.google.com",
+      icon: "https://mail.google.com/favicon.ico",
+    },
   ],
 };
 
