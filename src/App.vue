@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useColorMode } from "@vueuse/core";
 import type { BasicColorSchema } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
 import { MeteorShower } from "./canvas/MeteorShower";
-import { DaySky } from "./canvas/DaySky";
 import { loadSettings, saveSettings } from "./composables/useStorage";
 import type { Settings } from "./composables/useStorage";
 import { resolveLocale, setLocale } from "./i18n";
@@ -27,7 +26,7 @@ const isDarkTheme = computed(() =>
   colorMode.value === "auto" ? colorModeState.system.value === "dark" : colorMode.value === "dark",
 );
 
-let background: MeteorShower | DaySky | null = null;
+let background: MeteorShower | null = null;
 
 const themeOptions: {
   value: BasicColorSchema;
@@ -46,10 +45,9 @@ function cloneSettings(value: Settings): Settings {
 }
 
 function mountBackground() {
-  if (!canvasRef.value) return;
+  if (!canvasRef.value || background) return;
 
-  background?.stop();
-  background = isDarkTheme.value ? new MeteorShower(canvasRef.value) : new DaySky(canvasRef.value);
+  background = new MeteorShower(canvasRef.value, isDarkTheme.value ? "dark" : "light");
   background.start();
 }
 
@@ -59,10 +57,11 @@ onMounted(() => {
 
 onUnmounted(() => {
   background?.stop();
+  background = null;
 });
 
-watch(isDarkTheme, () => {
-  mountBackground();
+watch(isDarkTheme, (isDark) => {
+  background?.setTheme(isDark ? "dark" : "light");
 });
 
 watch(
@@ -107,19 +106,12 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
 </script>
 
 <template>
-  <div class="relative w-full h-full" :class="isDarkTheme ? 'bg-[#06070f]' : 'bg-[#e7eef8]'">
-    <!-- Canvas background -->
+  <div
+    class="relative w-full h-full transition-colors duration-500"
+    :class="isDarkTheme ? 'bg-[#121936]' : 'bg-[#c4d8f0]'"
+  >
     <canvas ref="canvasRef" class="absolute inset-0 w-full h-full" />
-    <div
-      class="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 light:opacity-100"
-      aria-hidden="true"
-    >
-      <div
-        class="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.52),transparent_34%),radial-gradient(circle_at_82%_78%,rgba(164,191,235,0.22),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0))]"
-      />
-    </div>
 
-    <!-- Main content -->
     <main class="relative z-10 w-full h-full flex flex-col items-center justify-center p-5">
       <ClockWidget
         v-if="settings.showClock"
@@ -134,15 +126,14 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
       </div>
     </main>
 
-    <!-- Theme buttons -->
     <div
-      class="fixed bottom-6 right-[4.5rem] flex items-center gap-1 rounded-full border px-1 py-1 backdrop-blur-2xl z-10 shadow-[0_8px_24px_rgba(0,0,0,0.32)] bg-white/[0.06] border-white/[0.10] dark:bg-white/[0.06] dark:border-white/[0.10] light:bg-[rgba(255,255,255,0.62)] light:border-[rgba(255,255,255,0.76)] light:[box-shadow:var(--light-shadow-soft)]"
+      class="fixed bottom-6 right-[4.5rem] flex items-center gap-1 rounded-full border px-1 py-1 backdrop-blur-2xl z-10 shadow-[0_8px_24px_rgba(0,0,0,0.32)] transition-colors duration-500 bg-white/[0.06] border-white/[0.10] dark:bg-white/[0.06] dark:border-white/[0.10] light:bg-[rgba(255,255,255,0.62)] light:border-[rgba(255,255,255,0.76)] light:[box-shadow:var(--light-shadow-soft)]"
       :aria-label="t('theme.selector')"
     >
       <button
         v-for="option in themeOptions"
         :key="option.value"
-        class="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200"
+        class="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 transition-colors duration-500"
         :class="
           colorMode === option.value
             ? 'bg-white/[0.14] text-white ring-1 ring-white/[0.14] dark:bg-white/[0.14] dark:text-white dark:ring-white/[0.14] light:bg-[rgba(255,255,255,0.86)] light:text-slate-900 light:ring-1 light:ring-[rgba(184,202,231,0.82)] light:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.84)]'
@@ -155,16 +146,14 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
       </button>
     </div>
 
-    <!-- Settings button -->
     <button
-      class="fixed bottom-6 right-6 w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-2xl cursor-pointer z-10 transition-all duration-200 border shadow-[0_8px_24px_rgba(0,0,0,0.32)] bg-white/[0.06] border-white/[0.10] text-white/40 hover:bg-white/[0.12] hover:text-white/90 hover:rotate-30 dark:bg-white/[0.06] dark:border-white/[0.10] dark:text-white/40 dark:hover:bg-white/[0.12] dark:hover:text-white/90 light:bg-[rgba(255,255,255,0.62)] light:border-[rgba(255,255,255,0.76)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.84)] light:hover:text-slate-900 light:[box-shadow:var(--light-shadow-soft)]"
+      class="fixed bottom-6 right-6 w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-2xl cursor-pointer z-10 transition-all duration-200 transition-colors duration-500 border shadow-[0_8px_24px_rgba(0,0,0,0.32)] bg-white/[0.06] border-white/[0.10] text-white/40 hover:bg-white/[0.12] hover:text-white/90 hover:rotate-30 dark:bg-white/[0.06] dark:border-white/[0.10] dark:text-white/40 dark:hover:bg-white/[0.12] dark:hover:text-white/90 light:bg-[rgba(255,255,255,0.62)] light:border-[rgba(255,255,255,0.76)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.84)] light:hover:text-slate-900 light:[box-shadow:var(--light-shadow-soft)]"
       :title="t('settings.open')"
       @click="openSettings"
     >
       <span :class="[settingsIconClass, 'h-[18px] w-[18px]']" aria-hidden="true" />
     </button>
 
-    <!-- Settings panel -->
     <Transition name="fade">
       <SettingsPanel
         v-if="showSettings"
