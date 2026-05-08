@@ -3,6 +3,7 @@ import { ref, reactive } from "vue";
 import type { BasicColorSchema } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
 import type { Settings, QuickLink, LanguageSetting } from "../composables/useStorage";
+import { importBrowserBookmarks, isBookmarksApiAvailable } from "../composables/useBookmarkImport";
 
 const props = defineProps<{
   settings: Settings;
@@ -23,18 +24,61 @@ const local = reactive<Settings>(JSON.parse(JSON.stringify(props.settings)));
 
 const newLink = ref({ name: "", url: "" });
 const addingLink = ref(false);
+const importMode = ref<"merge" | "replace">("merge");
+const importingBookmarks = ref(false);
+const bookmarksApiAvailable = isBookmarksApiAvailable();
+const importFeedback = ref<{ type: "success" | "error"; message: string } | null>(null);
+
+function createLinkId(prefix = "link"): string {
+  return typeof crypto.randomUUID === "function"
+    ? `${prefix}-${crypto.randomUUID()}`
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeHttpUrl(raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+
+  const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+
+  try {
+    const url = new URL(candidate);
+    return /^https?:$/.test(url.protocol) ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeQuickLinks(links: QuickLink[]): QuickLink[] {
+  const seenUrls = new Set<string>();
+
+  return links.reduce<QuickLink[]>((result, link) => {
+    const name = link.name.trim();
+    const url = normalizeHttpUrl(link.url);
+    if (!name || !url || seenUrls.has(url)) return result;
+
+    seenUrls.add(url);
+    result.push({
+      id: link.id || createLinkId(),
+      name,
+      url,
+    });
+    return result;
+  }, []);
+}
 
 function addLink() {
-  if (!newLink.value.name.trim() || !newLink.value.url.trim()) return;
-  let url = newLink.value.url.trim();
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    url = "https://" + url;
-  }
+  const name = newLink.value.name.trim();
+  const url = normalizeHttpUrl(newLink.value.url);
+  if (!name || !url) return;
+
   local.quickLinks.push({
-    id: Date.now().toString(),
-    name: newLink.value.name.trim(),
+    id: createLinkId(),
+    name,
     url,
   });
+
+  local.quickLinks = sanitizeQuickLinks(local.quickLinks);
   newLink.value = { name: "", url: "" };
   addingLink.value = false;
 }
@@ -43,7 +87,52 @@ function removeLink(id: string) {
   local.quickLinks = local.quickLinks.filter((l: QuickLink) => l.id !== id);
 }
 
+function moveLink(index: number, offset: -1 | 1) {
+  const nextIndex = index + offset;
+  if (nextIndex < 0 || nextIndex >= local.quickLinks.length) return;
+
+  const links = [...local.quickLinks];
+  const [item] = links.splice(index, 1);
+  links.splice(nextIndex, 0, item);
+  local.quickLinks = links;
+}
+
+async function importBookmarks() {
+  importingBookmarks.value = true;
+  importFeedback.value = null;
+
+  try {
+    const importedLinks = await importBrowserBookmarks();
+    if (importedLinks.length === 0) {
+      importFeedback.value = {
+        type: "success",
+        message: t("settings.importEmpty"),
+      };
+      return;
+    }
+
+    local.quickLinks =
+      importMode.value === "replace"
+        ? sanitizeQuickLinks(importedLinks)
+        : sanitizeQuickLinks([...local.quickLinks, ...importedLinks]);
+
+    importFeedback.value = {
+      type: "success",
+      message: t("settings.importSuccess", { count: importedLinks.length }),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    importFeedback.value = {
+      type: "error",
+      message: t("settings.importError", { message }),
+    };
+  } finally {
+    importingBookmarks.value = false;
+  }
+}
+
 function save() {
+  local.quickLinks = sanitizeQuickLinks(local.quickLinks);
   emit("save", JSON.parse(JSON.stringify(local)));
 }
 
@@ -221,37 +310,128 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
             {{ t("settings.quickLinks") }}
           </h3>
 
+          <div
+            class="flex flex-col gap-3 p-3 rounded-[10px] border transition-colors duration-500 bg-white/4 border-white/8 dark:bg-white/4 dark:border-white/8 light:bg-[rgba(255,255,255,0.5)] light:border-[rgba(206,218,239,0.82)]"
+          >
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+              <span
+                class="text-[0.875rem] transition-colors duration-500 text-white/75 dark:text-white/75 light:text-slate-700"
+              >
+                {{ t("settings.importMode") }}
+              </span>
+              <div class="flex gap-2 flex-wrap">
+                <button
+                  class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm cursor-pointer transition-all duration-150 transition-colors duration-500 bg-transparent"
+                  :class="
+                    importMode === 'merge'
+                      ? 'bg-accent/15 border-accent/50 text-accent dark:bg-accent/15 dark:border-accent/50 dark:text-accent light:bg-[rgba(74,122,255,0.1)] light:border-[rgba(120,155,231,0.46)] light:text-accent-light light:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.72)]'
+                      : 'border-white/12 text-white/60 hover:border-white/25 hover:text-white/90 dark:border-white/12 dark:text-white/60 dark:hover:border-white/25 dark:hover:text-white/90 light:border-[rgba(194,208,231,0.82)] light:text-slate-600 light:hover:border-[rgba(133,162,214,0.62)] light:hover:bg-[rgba(255,255,255,0.62)] light:hover:text-slate-800'
+                  "
+                  @click="importMode = 'merge'"
+                >
+                  {{ t("common.merge") }}
+                </button>
+                <button
+                  class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm cursor-pointer transition-all duration-150 transition-colors duration-500 bg-transparent"
+                  :class="
+                    importMode === 'replace'
+                      ? 'bg-accent/15 border-accent/50 text-accent dark:bg-accent/15 dark:border-accent/50 dark:text-accent light:bg-[rgba(74,122,255,0.1)] light:border-[rgba(120,155,231,0.46)] light:text-accent-light light:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.72)]'
+                      : 'border-white/12 text-white/60 hover:border-white/25 hover:text-white/90 dark:border-white/12 dark:text-white/60 dark:hover:border-white/25 dark:hover:text-white/90 light:border-[rgba(194,208,231,0.82)] light:text-slate-600 light:hover:border-[rgba(133,162,214,0.62)] light:hover:bg-[rgba(255,255,255,0.62)] light:hover:text-slate-800'
+                  "
+                  @click="importMode = 'replace'"
+                >
+                  {{ t("common.replace") }}
+                </button>
+              </div>
+            </div>
+
+            <button
+              class="px-[18px] py-2 rounded-lg text-[0.875rem] font-semibold cursor-pointer transition-colors duration-500 border-none bg-accent text-slate-950 hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60 dark:bg-accent dark:text-slate-950 dark:hover:bg-accent-hover light:bg-accent-light light:text-white light:hover:bg-accent-light-hover"
+              :disabled="!bookmarksApiAvailable || importingBookmarks"
+              @click="importBookmarks"
+            >
+              {{
+                importingBookmarks
+                  ? `${t("settings.importBookmarks")}...`
+                  : t("settings.importBookmarks")
+              }}
+            </button>
+
+            <p
+              v-if="!bookmarksApiAvailable"
+              class="text-xs transition-colors duration-500 text-white/45 dark:text-white/45 light:text-slate-500"
+            >
+              {{ t("settings.importUnavailable") }}
+            </p>
+            <p
+              v-else-if="importFeedback"
+              class="text-xs"
+              :class="
+                importFeedback.type === 'error'
+                  ? 'text-red-300 dark:text-red-300 light:text-red-600'
+                  : 'text-emerald-300 dark:text-emerald-300 light:text-emerald-600'
+              "
+            >
+              {{ importFeedback.message }}
+            </p>
+          </div>
+
+          <p
+            class="text-xs mt-1 transition-colors duration-500 text-white/40 dark:text-white/40 light:text-slate-500"
+          >
+            {{ t("settings.manageLinks") }}
+          </p>
+
           <div class="flex flex-col gap-1 mb-1">
             <div
-              v-for="link in local.quickLinks"
+              v-for="(link, index) in local.quickLinks"
               :key="link.id"
-              class="flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors duration-500 bg-white/4 dark:bg-white/4 light:bg-[rgba(255,255,255,0.56)] light:border light:border-[rgba(210,221,239,0.8)]"
+              class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto] gap-2 px-2.5 py-2 rounded-lg transition-colors duration-500 bg-white/4 dark:bg-white/4 light:bg-[rgba(255,255,255,0.56)] light:border light:border-[rgba(210,221,239,0.8)]"
             >
-              <span
-                class="text-[0.875rem] min-w-20 transition-colors duration-500 text-white/80 dark:text-white/80 light:text-slate-700"
-              >
-                {{ link.name }}
-              </span>
-              <span
-                class="flex-1 text-xs overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-500 text-white/35 dark:text-white/35 light:text-slate-500"
-              >
-                {{ link.url }}
-              </span>
-              <button
-                class="flex items-center justify-center w-6 h-6 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-red-500/15 hover:text-red-400 dark:text-white/30 dark:hover:bg-red-500/15 dark:hover:text-red-400 light:text-slate-400 light:hover:bg-red-500/10 light:hover:text-red-500"
-                @click="removeLink(link.id)"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
+              <input
+                v-model="link.name"
+                class="min-w-0 px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+                :placeholder="t('settings.linkName')"
+              />
+              <input
+                v-model="link.url"
+                class="min-w-0 px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+                :placeholder="t('settings.linkUrl')"
+              />
+              <div class="flex items-center justify-end gap-1">
+                <button
+                  class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-white/10 hover:text-white/90 disabled:cursor-not-allowed disabled:opacity-30 dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/90 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
+                  :disabled="index === 0"
+                  :title="t('settings.moveUp')"
+                  @click="moveLink(index, -1)"
                 >
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
+                  ↑
+                </button>
+                <button
+                  class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-white/10 hover:text-white/90 disabled:cursor-not-allowed disabled:opacity-30 dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/90 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
+                  :disabled="index === local.quickLinks.length - 1"
+                  :title="t('settings.moveDown')"
+                  @click="moveLink(index, 1)"
+                >
+                  ↓
+                </button>
+                <button
+                  class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-red-500/15 hover:text-red-400 dark:text-white/30 dark:hover:bg-red-500/15 dark:hover:text-red-400 light:text-slate-400 light:hover:bg-red-500/10 light:hover:text-red-500"
+                  :title="t('settings.removeLink')"
+                  @click="removeLink(link.id)"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 
