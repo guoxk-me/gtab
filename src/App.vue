@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useColorMode } from "@vueuse/core";
 import type { BasicColorSchema } from "@vueuse/core";
 import { MeteorShower } from "./canvas/MeteorShower";
@@ -15,10 +15,11 @@ const canvasRef = ref<HTMLCanvasElement | null>(null);
 const showSettings = ref(false);
 const settings = ref<Settings>(loadSettings());
 
-// useColorMode manages dark/light/auto, persists to localStorage automatically
-const colorMode = useColorMode();
-const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)");
-const isDarkTheme = ref(systemPrefersDark.matches);
+const colorModeState = useColorMode();
+const colorMode = colorModeState.store;
+const isDarkTheme = computed(() =>
+  colorMode.value === "auto" ? colorModeState.system.value === "dark" : colorMode.value === "dark",
+);
 
 let background: MeteorShower | DaySky | null = null;
 
@@ -34,17 +35,6 @@ const themeOptions: {
 
 const settingsIconClass = "icon-[solar--settings-linear]";
 
-function syncResolvedTheme() {
-  isDarkTheme.value =
-    colorMode.value === "auto" ? systemPrefersDark.matches : colorMode.value === "dark";
-}
-
-function onSystemThemeChange() {
-  if (colorMode.value !== "auto") return;
-  syncResolvedTheme();
-  mountBackground();
-}
-
 function mountBackground() {
   if (!canvasRef.value) return;
 
@@ -54,18 +44,14 @@ function mountBackground() {
 }
 
 onMounted(() => {
-  syncResolvedTheme();
   mountBackground();
-  systemPrefersDark.addEventListener("change", onSystemThemeChange);
 });
 
 onUnmounted(() => {
   background?.stop();
-  systemPrefersDark.removeEventListener("change", onSystemThemeChange);
 });
 
-watch(colorMode, () => {
-  syncResolvedTheme();
+watch(isDarkTheme, () => {
   mountBackground();
 });
 
