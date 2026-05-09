@@ -11,9 +11,11 @@ import ClockWidget from "./components/ClockWidget.vue";
 import SearchBar from "./components/SearchBar.vue";
 import QuickLinks from "./components/QuickLinks.vue";
 import SettingsPanel from "./components/SettingsPanel.vue";
+import LinksManager from "./components/LinksManager.vue";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const showSettings = ref(false);
+const showLinksManager = ref(false);
 const settings = ref<Settings>(loadSettings());
 const { t } = useI18n();
 const currentLocale = computed(() => resolveLocale(settings.value.language));
@@ -77,6 +79,7 @@ function onSaveSettings(updated: Settings) {
   saveSettings(updated);
   settingsSnapshot.value = null;
   showSettings.value = false;
+  showLinksManager.value = false;
 }
 
 function openSettings() {
@@ -93,6 +96,19 @@ function closeSettings() {
   colorMode.value = colorModeSnapshot.value;
   settingsSnapshot.value = null;
   showSettings.value = false;
+}
+
+function openLinksManager() {
+  showLinksManager.value = true;
+}
+
+function closeLinksManager() {
+  showLinksManager.value = false;
+}
+
+function openLinksManagerFromSettings() {
+  showSettings.value = false;
+  showLinksManager.value = true;
 }
 
 function onPreviewLanguage(language: Settings["language"]) {
@@ -122,7 +138,12 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
 
       <div class="flex flex-col items-center gap-8 w-full">
         <SearchBar :engine="settings.searchEngine" @change-engine="onChangeEngine" />
-        <QuickLinks :links="settings.quickLinks" @edit="openSettings" />
+        <QuickLinks
+          :links="settings.quickLinks"
+          :link-groups="settings.linkGroups"
+          :pinned-link-ids="settings.pinnedLinkIds"
+          @open-manager="openLinksManager"
+        />
       </div>
     </main>
 
@@ -161,8 +182,18 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
         :color-mode="colorMode"
         @save="onSaveSettings"
         @close="closeSettings"
+        @open-links-manager="openLinksManagerFromSettings"
         @update:language="onPreviewLanguage"
         @update:color-mode="colorMode = $event"
+      />
+    </Transition>
+
+    <Transition name="fade">
+      <LinksManager
+        v-if="showLinksManager"
+        :settings="settings"
+        @close="closeLinksManager"
+        @save="onSaveSettings"
       />
     </Transition>
   </div>
