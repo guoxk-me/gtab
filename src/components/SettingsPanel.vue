@@ -1,9 +1,22 @@
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { reactive, ref } from "vue";
 import type { BasicColorSchema } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
-import type { Settings, QuickLink, LanguageSetting } from "../composables/useStorage";
+import type {
+  LanguageSetting,
+  QuickLinkFolder,
+  QuickLinkItem,
+  QuickLinkLink,
+  Settings,
+} from "../composables/useStorage";
 import { importBrowserBookmarks, isBookmarksApiAvailable } from "../composables/useBookmarkImport";
+import {
+  createQuickLinkId,
+  isQuickLinkFolder,
+  reorderQuickLinkItems,
+  sanitizeQuickLinkItems,
+  sanitizeQuickLinkLinks,
+} from "../composables/quickLinkItems";
 import { useSearchHistory } from "../composables/useSearchHistory";
 
 const props = defineProps<{
@@ -45,73 +58,77 @@ const importMode = ref<"merge" | "replace">("merge");
 const importingBookmarks = ref(false);
 const bookmarksApiAvailable = isBookmarksApiAvailable();
 const importFeedback = ref<{ type: "success" | "error"; message: string } | null>(null);
-
-function createLinkId(prefix = "link"): string {
-  return typeof crypto.randomUUID === "function"
-    ? `${prefix}-${crypto.randomUUID()}`
-    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function normalizeHttpUrl(raw: string): string | null {
-  const value = raw.trim();
-  if (!value) return null;
-
-  const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
-
-  try {
-    const url = new URL(candidate);
-    return /^https?:$/.test(url.protocol) ? url.toString() : null;
-  } catch {
-    return null;
-  }
-}
-
-function sanitizeQuickLinks(links: QuickLink[]): QuickLink[] {
-  const seenUrls = new Set<string>();
-
-  return links.reduce<QuickLink[]>((result, link) => {
-    const name = link.name.trim();
-    const url = normalizeHttpUrl(link.url);
-    if (!name || !url || seenUrls.has(url)) return result;
-
-    seenUrls.add(url);
-    result.push({
-      id: link.id || createLinkId(),
-      name,
-      url,
-    });
-    return result;
-  }, []);
-}
+const dragSourceIndex = ref<number | null>(null);
+const dragTargetIndex = ref<number | null>(null);
 
 function addLink() {
-  const name = newLink.value.name.trim();
-  const url = normalizeHttpUrl(newLink.value.url);
-  if (!name || !url) return;
-
-  local.quickLinks.push({
-    id: createLinkId(),
-    name,
-    url,
-  });
-
-  local.quickLinks = sanitizeQuickLinks(local.quickLinks);
+  local.quickLinks = sanitizeQuickLinkItems([
+    ...local.quickLinks,
+    {
+      id: createQuickLinkId(),
+      type: "link",
+      name: newLink.value.name,
+      url: newLink.value.url,
+    },
+  ]);
   newLink.value = { name: "", url: "" };
   addingLink.value = false;
 }
 
-function removeLink(id: string) {
-  local.quickLinks = local.quickLinks.filter((l: QuickLink) => l.id !== id);
+function removeItem(id: string) {
+  local.quickLinks = local.quickLinks.filter((item) => item.id !== id);
+}
+
+function removeFolderLink(folderId: string, linkId: string) {
+  local.quickLinks = local.quickLinks.flatMap((item) => {
+    if (item.id !== folderId || !isQuickLinkFolder(item)) return [item];
+
+    const links = item.links.filter((link) => link.id !== linkId);
+    if (links.length === 0) return [];
+    if (links.length === 1) return [links[0]];
+    return [{ ...item, links }];
+  });
 }
 
 function moveLink(index: number, offset: -1 | 1) {
   const nextIndex = index + offset;
   if (nextIndex < 0 || nextIndex >= local.quickLinks.length) return;
 
-  const links = [...local.quickLinks];
-  const [item] = links.splice(index, 1);
-  links.splice(nextIndex, 0, item);
-  local.quickLinks = links;
+  local.quickLinks = reorderQuickLinkItems(local.quickLinks, index, nextIndex);
+}
+
+function onDragStart(event: DragEvent, index: number) {
+  dragSourceIndex.value = index;
+  dragTargetIndex.value = index;
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", local.quickLinks[index]?.id ?? String(index));
+  }
+}
+
+function onDragOver(event: DragEvent, index: number) {
+  if (dragSourceIndex.value === null || dragSourceIndex.value === index) return;
+
+  event.preventDefault();
+  dragTargetIndex.value = index;
+
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = "move";
+  }
+}
+
+function onDrop(event: DragEvent, index: number) {
+  if (dragSourceIndex.value === null) return;
+
+  event.preventDefault();
+  local.quickLinks = reorderQuickLinkItems(local.quickLinks, dragSourceIndex.value, index);
+  resetDragState();
+}
+
+function resetDragState() {
+  dragSourceIndex.value = null;
+  dragTargetIndex.value = null;
 }
 
 async function importBookmarks() {
@@ -130,8 +147,8 @@ async function importBookmarks() {
 
     local.quickLinks =
       importMode.value === "replace"
-        ? sanitizeQuickLinks(importedLinks)
-        : sanitizeQuickLinks([...local.quickLinks, ...importedLinks]);
+        ? sanitizeQuickLinkItems(importedLinks)
+        : sanitizeQuickLinkItems([...local.quickLinks, ...importedLinks]);
 
     importFeedback.value = {
       type: "success",
@@ -149,8 +166,31 @@ async function importBookmarks() {
 }
 
 function save() {
-  local.quickLinks = sanitizeQuickLinks(local.quickLinks);
+  local.quickLinks = sanitizeQuickLinkItems(local.quickLinks);
   emit("save", JSON.parse(JSON.stringify(local)));
+}
+
+function normalizeFolderLinks(item: QuickLinkItem): QuickLinkItem {
+  if (!isQuickLinkFolder(item)) return item;
+
+  const links = sanitizeQuickLinkLinks(item.links);
+  if (links.length <= 1) return links[0] ?? item;
+  return { ...item, links };
+}
+
+function onFolderFieldBlur(folderId: string) {
+  local.quickLinks = local.quickLinks.map((item) => {
+    if (item.id !== folderId) return item;
+    return normalizeFolderLinks(item);
+  });
+}
+
+function isFolder(item: QuickLinkItem): item is QuickLinkFolder {
+  return isQuickLinkFolder(item);
+}
+
+function asFolderLinks(item: QuickLinkItem): QuickLinkLink[] {
+  return isQuickLinkFolder(item) ? item.links : [];
 }
 
 function previewLanguage(language: LanguageSetting) {
@@ -439,52 +479,119 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
 
           <div class="flex flex-col gap-1 mb-1">
             <div
-              v-for="(link, index) in local.quickLinks"
-              :key="link.id"
-              class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto] gap-2 px-2.5 py-2 rounded-lg transition-colors duration-500 bg-white/4 dark:bg-white/4 light:bg-[rgba(255,255,255,0.56)] light:border light:border-[rgba(210,221,239,0.8)]"
+              v-for="(item, index) in local.quickLinks"
+              :key="item.id"
+              class="px-2.5 py-2 rounded-lg transition-colors duration-500 bg-white/4 dark:bg-white/4 light:bg-[rgba(255,255,255,0.56)] light:border light:border-[rgba(210,221,239,0.8)]"
+              :class="[
+                dragSourceIndex === index ? 'opacity-55 cursor-grabbing' : 'cursor-grab',
+                dragTargetIndex === index && dragSourceIndex !== index
+                  ? 'ring-1 ring-accent/60 dark:ring-accent/60 light:ring-[rgba(74,122,255,0.42)]'
+                  : '',
+              ]"
+              draggable="true"
+              @dragstart="onDragStart($event, index)"
+              @dragover="onDragOver($event, index)"
+              @drop="onDrop($event, index)"
+              @dragend="resetDragState"
             >
-              <input
-                v-model="link.name"
-                class="min-w-0 px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
-                :placeholder="t('settings.linkName')"
-              />
-              <input
-                v-model="link.url"
-                class="min-w-0 px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
-                :placeholder="t('settings.linkUrl')"
-              />
-              <div class="flex items-center justify-end gap-1">
-                <button
-                  class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-white/10 hover:text-white/90 disabled:cursor-not-allowed disabled:opacity-30 dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/90 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
-                  :disabled="index === 0"
-                  :title="t('settings.moveUp')"
-                  @click="moveLink(index, -1)"
-                >
-                  ↑
-                </button>
-                <button
-                  class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-white/10 hover:text-white/90 disabled:cursor-not-allowed disabled:opacity-30 dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/90 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
-                  :disabled="index === local.quickLinks.length - 1"
-                  :title="t('settings.moveDown')"
-                  @click="moveLink(index, 1)"
-                >
-                  ↓
-                </button>
-                <button
-                  class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-red-500/15 hover:text-red-400 dark:text-white/30 dark:hover:bg-red-500/15 dark:hover:text-red-400 light:text-slate-400 light:hover:bg-red-500/10 light:hover:text-red-500"
-                  :title="t('settings.removeLink')"
-                  @click="removeLink(link.id)"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
+              <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto] gap-2">
+                <input
+                  v-model="item.name"
+                  class="min-w-0 px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+                  :placeholder="t('settings.linkName')"
+                  @blur="isFolder(item) ? onFolderFieldBlur(item.id) : undefined"
+                />
+                <template v-if="isFolder(item)">
+                  <div
+                    class="min-w-0 px-3 py-2 rounded-lg text-[0.875rem] border transition-colors duration-500 bg-white/6 border-white/10 text-white/55 dark:bg-white/6 dark:border-white/10 dark:text-white/55 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-500"
                   >
-                    <path d="M18 6 6 18M6 6l12 12" />
-                  </svg>
+                    {{ t("quickLinks.folderContains", { count: item.links.length }) }}
+                  </div>
+                </template>
+                <input
+                  v-else
+                  v-model="item.url"
+                  class="min-w-0 px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+                  :placeholder="t('settings.linkUrl')"
+                />
+                <div class="flex items-center justify-end gap-1">
+                  <button
+                    class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-white/10 hover:text-white/90 disabled:cursor-not-allowed disabled:opacity-30 dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/90 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
+                    :disabled="index === 0"
+                    :title="t('settings.moveUp')"
+                    @click="moveLink(index, -1)"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-white/10 hover:text-white/90 disabled:cursor-not-allowed disabled:opacity-30 dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/90 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
+                    :disabled="index === local.quickLinks.length - 1"
+                    :title="t('settings.moveDown')"
+                    @click="moveLink(index, 1)"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-red-500/15 hover:text-red-400 dark:text-white/30 dark:hover:bg-red-500/15 dark:hover:text-red-400 light:text-slate-400 light:hover:bg-red-500/10 light:hover:text-red-500"
+                    :title="t('settings.removeLink')"
+                    @click="removeItem(item.id)"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="isFolder(item)" class="mt-2 flex flex-col gap-2 pl-3">
+                <div
+                  v-for="folderLink in asFolderLinks(item)"
+                  :key="folderLink.id"
+                  class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto] gap-2 rounded-lg border px-2.5 py-2 bg-white/4 border-white/8 dark:bg-white/4 dark:border-white/8 light:bg-[rgba(255,255,255,0.52)] light:border-[rgba(210,221,239,0.78)]"
+                >
+                  <input
+                    v-model="folderLink.name"
+                    class="min-w-0 px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+                    :placeholder="t('settings.linkName')"
+                    @blur="onFolderFieldBlur(item.id)"
+                  />
+                  <input
+                    v-model="folderLink.url"
+                    class="min-w-0 px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+                    :placeholder="t('settings.linkUrl')"
+                    @blur="onFolderFieldBlur(item.id)"
+                  />
+                  <div class="flex items-center justify-end gap-1">
+                    <button
+                      class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-red-500/15 hover:text-red-400 dark:text-white/30 dark:hover:bg-red-500/15 dark:hover:text-red-400 light:text-slate-400 light:hover:bg-red-500/10 light:hover:text-red-500"
+                      :title="t('settings.removeLink')"
+                      @click="removeFolderLink(item.id, folderLink.id)"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path d="M18 6 6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <button
+                  class="self-start py-1 text-xs text-white/45 transition-colors duration-500 hover:text-white/80 dark:text-white/45 dark:hover:text-white/80 light:text-slate-500 light:hover:text-slate-800"
+                  @click="onFolderFieldBlur(item.id)"
+                >
+                  {{ t("common.save") }}
                 </button>
               </div>
             </div>

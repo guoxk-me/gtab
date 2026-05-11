@@ -34,13 +34,13 @@ onUnmounted(() => clearInterval(timer));
 <template>
   <div class="text-center select-none">
     <div
-      class="clock-time inline-block text-[clamp(2.5rem,8vw,8rem)] font-[320] tracking-[0.02em] leading-none whitespace-nowrap transition-[color,text-shadow] duration-500 text-white dark:text-white light:text-slate-900 [text-shadow:0_0_40px_rgba(120,160,255,0.4),0_2px_8px_rgba(0,0,0,0.5)] dark:[text-shadow:0_0_40px_rgba(120,160,255,0.4),0_2px_8px_rgba(0,0,0,0.5)] light:[text-shadow:0_12px_24px_rgba(255,255,255,0.58),0_2px_10px_rgba(116,138,176,0.18)]"
+      class="clock-time inline-block text-[clamp(2rem,6vw,6rem)] font-[200] tracking-[0.04em] leading-none whitespace-nowrap transition-[color,text-shadow] duration-500 text-white dark:text-white light:text-slate-800 [text-shadow:0_0_60px_rgba(120,160,255,0.35),0_2px_12px_rgba(0,0,0,0.35)] dark:[text-shadow:0_0_60px_rgba(120,160,255,0.35),0_2px_12px_rgba(0,0,0,0.35)] light:[text-shadow:0_8px_32px_rgba(255,255,255,0.7),0_2px_8px_rgba(116,138,176,0.15)]"
       :style="{ minWidth: showSeconds ? '8ch' : '5ch' }"
     >
       {{ time }}
     </div>
     <div
-      class="mt-2 text-[clamp(0.7rem,1.5vw,1.1rem)] font-light tracking-[0.15em] uppercase transition-colors duration-500 text-white/55 dark:text-white/55 light:text-slate-600/95"
+      class="mt-3 text-[clamp(0.65rem,1.2vw,0.9rem)] font-[300] tracking-[0.22em] uppercase transition-colors duration-500 text-white/45 dark:text-white/45 light:text-slate-500"
     >
       {{ date }}
     </div>

@@ -61,6 +61,10 @@ const messages = {
     },
     quickLinks: {
       edit: "编辑链接",
+      newFolder: "新建文件夹",
+      folderContains: "{count} 个链接",
+      openFolder: "打开文件夹",
+      dropToCreateFolder: "松手创建文件夹",
     },
     theme: {
       selector: "主题切换",
@@ -122,6 +126,10 @@ const messages = {
     },
     quickLinks: {
       edit: "Edit links",
+      newFolder: "New Folder",
+      folderContains: "{count} links",
+      openFolder: "Open folder",
+      dropToCreateFolder: "Release to create folder",
     },
     theme: {
       selector: "Theme selector",

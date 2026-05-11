@@ -143,14 +143,14 @@ function selectEngine(key: keyof typeof engines) {
 </script>
 
 <template>
-  <div class="relative w-full max-w-[600px] px-4 sm:px-0">
+  <div class="relative w-full max-w-[680px] px-4 sm:px-0">
     <!-- Search box -->
     <div
-      class="flex items-center rounded-full backdrop-blur-2xl overflow-hidden border transition-all duration-200 transition-colors duration-500 bg-white/10 border-white/15 dark:bg-white/10 dark:border-white/15 light:bg-[rgba(255,255,255,0.68)] light:border-[rgba(255,255,255,0.76)] light:[box-shadow:var(--light-shadow-float)] focus-within:border-accent/50 focus-within:shadow-[0_0_0_3px_rgba(120,160,255,0.15)] dark:focus-within:border-accent/50 light:focus-within:border-[rgba(139,170,226,0.62)] light:focus-within:[box-shadow:var(--light-ring),0_22px_44px_rgba(117,144,187,0.22),inset_0_1px_0_rgba(255,255,255,0.82)]"
+      class="flex items-center rounded-full backdrop-blur-2xl overflow-hidden border transition-all duration-200 transition-colors duration-500 bg-white/[0.12] border-white/[0.14] dark:bg-white/[0.12] dark:border-white/[0.14] light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(255,255,255,0.82)] light:[box-shadow:var(--light-shadow-float)] focus-within:border-white/30 focus-within:bg-white/[0.16] focus-within:shadow-[0_0_0_3px_rgba(120,160,255,0.12)] dark:focus-within:border-white/30 dark:focus-within:bg-white/[0.16] light:focus-within:border-[rgba(139,170,226,0.62)] light:focus-within:[box-shadow:var(--light-ring),0_22px_44px_rgba(117,144,187,0.22),inset_0_1px_0_rgba(255,255,255,0.82)]"
     >
       <!-- Engine selector -->
       <button
-        class="flex items-center justify-center w-11 h-11 bg-transparent border-none cursor-pointer flex-shrink-0 rounded-l-full transition-colors duration-150 hover:bg-white/8 dark:hover:bg-white/8 light:hover:bg-[rgba(109,141,196,0.08)]"
+        class="flex items-center justify-center w-12 h-12 bg-transparent border-none cursor-pointer flex-shrink-0 rounded-l-full transition-colors duration-150 hover:bg-white/8 dark:hover:bg-white/8 light:hover:bg-[rgba(109,141,196,0.08)]"
         :title="engines[engine].name"
         @click="showEngineMenu = !showEngineMenu"
       >
@@ -167,7 +167,7 @@ function selectEngine(key: keyof typeof engines) {
       <input
         ref="inputRef"
         v-model="query"
-        class="flex-1 h-11 bg-transparent border-none outline-none text-base px-2 transition-colors duration-500 text-white placeholder:text-white/30 dark:text-white dark:placeholder:text-white/30 light:text-slate-900 light:placeholder:text-slate-500/80"
+        class="flex-1 h-12 bg-transparent border-none outline-none text-[0.95rem] px-2 transition-colors duration-500 text-white placeholder:text-white/35 dark:text-white dark:placeholder:text-white/35 light:text-slate-800 light:placeholder:text-slate-400"
         type="text"
         :placeholder="t('search.placeholder')"
         autofocus
@@ -183,7 +183,7 @@ function selectEngine(key: keyof typeof engines) {
 
       <!-- Search button -->
       <button
-        class="flex items-center justify-center w-11 h-11 bg-transparent border-none cursor-pointer flex-shrink-0 rounded-r-full transition-all duration-150 transition-colors duration-500 text-white/50 hover:text-white hover:bg-white/8 dark:text-white/50 dark:hover:text-white dark:hover:bg-white/8 light:text-slate-500 light:hover:text-slate-900 light:hover:bg-[rgba(109,141,196,0.08)]"
+        class="flex items-center justify-center w-12 h-12 bg-transparent border-none cursor-pointer flex-shrink-0 rounded-r-full transition-all duration-150 transition-colors duration-500 text-white/45 hover:text-white hover:bg-white/8 dark:text-white/45 dark:hover:text-white dark:hover:bg-white/8 light:text-slate-400 light:hover:text-slate-800 light:hover:bg-[rgba(109,141,196,0.08)]"
         :title="t('search.submit')"
         @click="search"
       >

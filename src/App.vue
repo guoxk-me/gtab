@@ -6,6 +6,7 @@ import { useI18n } from "vue-i18n";
 import { MeteorShower } from "./canvas/MeteorShower";
 import { loadSettings, saveSettings } from "./composables/useStorage";
 import type { Settings } from "./composables/useStorage";
+import { moveQuickLinkItemIntoTarget, reorderQuickLinkItems } from "./composables/quickLinkItems";
 import { resolveLocale, setLocale } from "./i18n";
 import ClockWidget from "./components/ClockWidget.vue";
 import SearchBar from "./components/SearchBar.vue";
@@ -103,6 +104,34 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
   settings.value = { ...settings.value, searchEngine: engine };
   saveSettings(settings.value);
 }
+
+function onReorderQuickLinks(draggedId: string, toIndex: number) {
+  const fromIndex = settings.value.quickLinks.findIndex((item) => item.id === draggedId);
+  const quickLinks = reorderQuickLinkItems(settings.value.quickLinks, fromIndex, toIndex);
+  if (quickLinks === settings.value.quickLinks) return;
+
+  settings.value = {
+    ...settings.value,
+    quickLinks,
+  };
+  saveSettings(settings.value);
+}
+
+function onGroupQuickLinks(draggedId: string, targetId: string) {
+  const quickLinks = moveQuickLinkItemIntoTarget(
+    settings.value.quickLinks,
+    draggedId,
+    targetId,
+    t("quickLinks.newFolder"),
+  );
+  if (quickLinks === settings.value.quickLinks) return;
+
+  settings.value = {
+    ...settings.value,
+    quickLinks,
+  };
+  saveSettings(settings.value);
+}
 </script>
 
 <template>
@@ -113,7 +142,7 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
     <canvas ref="canvasRef" class="absolute inset-0 w-full h-full" />
 
     <main
-      class="relative z-10 w-full h-full flex flex-col items-center justify-center gap-6 sm:gap-10 px-4 py-8"
+      class="relative z-10 w-full h-full flex flex-col items-center justify-center gap-8 sm:gap-14 px-4 py-8"
     >
       <ClockWidget
         v-if="settings.showClock"
@@ -121,9 +150,14 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
         :locale="currentLocale"
       />
 
-      <div class="flex flex-col items-center gap-4 sm:gap-8 w-full">
+      <div class="flex flex-col items-center gap-5 sm:gap-7 w-full">
         <SearchBar :engine="settings.searchEngine" @change-engine="onChangeEngine" />
-        <QuickLinks :links="settings.quickLinks" @edit="openSettings" />
+        <QuickLinks
+          :links="settings.quickLinks"
+          @edit="openSettings"
+          @reorder="onReorderQuickLinks"
+          @group="onGroupQuickLinks"
+        />
       </div>
     </main>
 

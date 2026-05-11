@@ -1,18 +1,5 @@
-import type { QuickLink } from "./useStorage";
-
-function normalizeHttpUrl(raw: string): string | null {
-  const value = raw.trim();
-  if (!value) return null;
-
-  const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
-
-  try {
-    const url = new URL(candidate);
-    return /^https?:$/.test(url.protocol) ? url.toString() : null;
-  } catch {
-    return null;
-  }
-}
+import type { QuickLinkLink } from "./quickLinkItems";
+import { normalizeHttpUrl } from "./quickLinkItems";
 
 function getBookmarkName(title: string, url: string): string {
   const trimmedTitle = title.trim();
@@ -25,8 +12,8 @@ function getBookmarkName(title: string, url: string): string {
   }
 }
 
-function flattenBookmarkTree(nodes: ChromeBookmarkTreeNode[]): QuickLink[] {
-  const links: QuickLink[] = [];
+function flattenBookmarkTree(nodes: ChromeBookmarkTreeNode[]): QuickLinkLink[] {
+  const links: QuickLinkLink[] = [];
   const seenUrls = new Set<string>();
 
   const visit = (node: ChromeBookmarkTreeNode) => {
@@ -35,6 +22,7 @@ function flattenBookmarkTree(nodes: ChromeBookmarkTreeNode[]): QuickLink[] {
       seenUrls.add(normalizedUrl);
       links.push({
         id: `bookmark-${node.id}`,
+        type: "link",
         name: getBookmarkName(node.title ?? "", normalizedUrl),
         url: normalizedUrl,
       });
@@ -71,7 +59,7 @@ export function isBookmarksApiAvailable(): boolean {
   return typeof chrome !== "undefined" && typeof chrome.bookmarks?.getTree === "function";
 }
 
-export async function importBrowserBookmarks(): Promise<QuickLink[]> {
+export async function importBrowserBookmarks(): Promise<QuickLinkLink[]> {
   const tree = await getBookmarkTree();
   return flattenBookmarkTree(tree);
 }
