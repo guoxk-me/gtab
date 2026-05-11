@@ -2,13 +2,7 @@
 import { ref, reactive } from "vue";
 import type { BasicColorSchema } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
-import {
-  HOME_PIN_LIMIT,
-  normalizeSettings,
-  type QuickLink,
-  type Settings,
-  type LanguageSetting,
-} from "../composables/useStorage";
+import type { Settings, QuickLink, LanguageSetting } from "../composables/useStorage";
 import { importBrowserBookmarks, isBookmarksApiAvailable } from "../composables/useBookmarkImport";
 
 const props = defineProps<{
@@ -19,7 +13,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   save: [settings: Settings];
   close: [];
-  "open-links-manager": [];
   "update:language": [value: LanguageSetting];
   "update:colorMode": [value: BasicColorSchema];
 }>();
@@ -29,10 +22,18 @@ const { t } = useI18n();
 // Local copy to edit
 const local = reactive<Settings>(JSON.parse(JSON.stringify(props.settings)));
 
+const newLink = ref({ name: "", url: "" });
+const addingLink = ref(false);
 const importMode = ref<"merge" | "replace">("merge");
 const importingBookmarks = ref(false);
 const bookmarksApiAvailable = isBookmarksApiAvailable();
 const importFeedback = ref<{ type: "success" | "error"; message: string } | null>(null);
+
+function createLinkId(prefix = "link"): string {
+  return typeof crypto.randomUUID === "function"
+    ? `${prefix}-${crypto.randomUUID()}`
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 function normalizeHttpUrl(raw: string): string | null {
   const value = raw.trim();
@@ -52,14 +53,13 @@ function sanitizeQuickLinks(links: QuickLink[]): QuickLink[] {
   const seenUrls = new Set<string>();
 
   return links.reduce<QuickLink[]>((result, link) => {
-    const id = link.id.trim();
     const name = link.name.trim();
     const url = normalizeHttpUrl(link.url);
-    if (!id || !name || !url || seenUrls.has(url)) return result;
+    if (!name || !url || seenUrls.has(url)) return result;
 
     seenUrls.add(url);
     result.push({
-      id,
+      id: link.id || createLinkId(),
       name,
       url,
     });
@@ -67,15 +67,34 @@ function sanitizeQuickLinks(links: QuickLink[]): QuickLink[] {
   }, []);
 }
 
-function syncLinkStructure(nextQuickLinks: Settings["quickLinks"]) {
-  const normalized = normalizeSettings({
-    ...JSON.parse(JSON.stringify(local)),
-    quickLinks: nextQuickLinks,
+function addLink() {
+  const name = newLink.value.name.trim();
+  const url = normalizeHttpUrl(newLink.value.url);
+  if (!name || !url) return;
+
+  local.quickLinks.push({
+    id: createLinkId(),
+    name,
+    url,
   });
 
-  local.quickLinks = normalized.quickLinks;
-  local.linkGroups = normalized.linkGroups;
-  local.pinnedLinkIds = normalized.pinnedLinkIds;
+  local.quickLinks = sanitizeQuickLinks(local.quickLinks);
+  newLink.value = { name: "", url: "" };
+  addingLink.value = false;
+}
+
+function removeLink(id: string) {
+  local.quickLinks = local.quickLinks.filter((l: QuickLink) => l.id !== id);
+}
+
+function moveLink(index: number, offset: -1 | 1) {
+  const nextIndex = index + offset;
+  if (nextIndex < 0 || nextIndex >= local.quickLinks.length) return;
+
+  const links = [...local.quickLinks];
+  const [item] = links.splice(index, 1);
+  links.splice(nextIndex, 0, item);
+  local.quickLinks = links;
 }
 
 async function importBookmarks() {
@@ -92,12 +111,10 @@ async function importBookmarks() {
       return;
     }
 
-    const mergedLinks =
+    local.quickLinks =
       importMode.value === "replace"
         ? sanitizeQuickLinks(importedLinks)
         : sanitizeQuickLinks([...local.quickLinks, ...importedLinks]);
-
-    syncLinkStructure(mergedLinks);
 
     importFeedback.value = {
       type: "success",
@@ -115,8 +132,8 @@ async function importBookmarks() {
 }
 
 function save() {
-  syncLinkStructure(sanitizeQuickLinks(local.quickLinks));
-  emit("save", normalizeSettings(JSON.parse(JSON.stringify(local))));
+  local.quickLinks = sanitizeQuickLinks(local.quickLinks);
+  emit("save", JSON.parse(JSON.stringify(local)));
 }
 
 function previewLanguage(language: LanguageSetting) {
@@ -149,16 +166,16 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
 <template>
   <!-- Overlay -->
   <div
-    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-5 transition-colors duration-500 light:bg-[rgba(226,235,247,0.55)]"
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4 sm:p-5 transition-colors duration-500 light:bg-[rgba(226,235,247,0.55)]"
     @click.self="emit('close')"
   >
     <!-- Panel -->
     <div
-      class="w-full max-w-[480px] max-h-[80vh] flex flex-col rounded-[20px] shadow-[0_24px_64px_rgba(0,0,0,0.6)] border transition-colors duration-500 bg-slate-950/97 border-white/10 dark:bg-slate-950/97 dark:border-white/10 light:bg-[rgba(247,250,255,0.92)] light:border-[rgba(255,255,255,0.82)] light:[box-shadow:var(--light-shadow-panel)]"
+      class="w-full max-w-[480px] max-h-[90vh] sm:max-h-[80vh] flex flex-col rounded-[20px] shadow-[0_24px_64px_rgba(0,0,0,0.6)] border transition-colors duration-500 bg-slate-950/97 border-white/10 dark:bg-slate-950/97 dark:border-white/10 light:bg-[rgba(247,250,255,0.92)] light:border-[rgba(255,255,255,0.82)] light:[box-shadow:var(--light-shadow-panel)]"
     >
       <!-- Header -->
       <div
-        class="flex items-center justify-between px-6 py-5 border-b transition-colors duration-500 border-white/8 dark:border-white/8 light:border-[rgba(194,208,231,0.72)]"
+        class="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b transition-colors duration-500 border-white/8 dark:border-white/8 light:border-[rgba(194,208,231,0.72)]"
       >
         <h2
           class="text-[1.1rem] font-medium transition-colors duration-500 text-white dark:text-white light:text-slate-900"
@@ -174,7 +191,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
       </div>
 
       <!-- Body -->
-      <div class="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6 scrollbar-thin">
+      <div class="flex-1 overflow-y-auto px-4 sm:px-6 py-4 flex flex-col gap-6 scrollbar-thin">
         <!-- Appearance -->
         <section class="flex flex-col gap-3">
           <h3
@@ -359,77 +376,113 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
             </p>
           </div>
 
-          <div
-            class="flex flex-col gap-3 p-4 rounded-[14px] border transition-colors duration-500 bg-white/4 border-white/8 dark:bg-white/4 dark:border-white/8 light:bg-[rgba(255,255,255,0.5)] light:border-[rgba(206,218,239,0.82)]"
+          <p
+            class="text-xs mt-1 transition-colors duration-500 text-white/40 dark:text-white/40 light:text-slate-500"
           >
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <p class="text-sm text-white/80 dark:text-white/80 light:text-slate-800">
-                  {{ t("settings.manageLinks") }}
-                </p>
-                <p class="mt-1 text-xs text-white/45 dark:text-white/45 light:text-slate-500">
-                  {{ t("linksManager.pinnedCount", { count: local.pinnedLinkIds.length }) }}
-                </p>
-              </div>
-              <span
-                class="rounded-full px-2.5 py-1 text-[11px] font-medium bg-white/8 text-white/55 dark:bg-white/8 dark:text-white/55 light:bg-[rgba(255,255,255,0.82)] light:text-slate-600"
-              >
-                {{ local.quickLinks.length }}
-              </span>
-            </div>
+            {{ t("settings.manageLinks") }}
+          </p>
 
-            <div class="grid grid-cols-3 gap-2 text-xs">
-              <div
-                class="rounded-xl border px-3 py-2 bg-white/[0.03] border-white/8 dark:bg-white/[0.03] dark:border-white/8 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(205,217,238,0.82)]"
-              >
-                <div class="text-white/40 dark:text-white/40 light:text-slate-500">
-                  {{ t("linksManager.groups") }}
-                </div>
-                <div
-                  class="mt-1 text-sm font-medium text-white dark:text-white light:text-slate-900"
-                >
-                  {{ local.linkGroups.length }}
-                </div>
-              </div>
-              <div
-                class="rounded-xl border px-3 py-2 bg-white/[0.03] border-white/8 dark:bg-white/[0.03] dark:border-white/8 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(205,217,238,0.82)]"
-              >
-                <div class="text-white/40 dark:text-white/40 light:text-slate-500">
-                  {{ t("quickLinks.pinned") }}
-                </div>
-                <div
-                  class="mt-1 text-sm font-medium text-white dark:text-white light:text-slate-900"
-                >
-                  {{ local.pinnedLinkIds.length }}/{{ HOME_PIN_LIMIT }}
-                </div>
-              </div>
-              <div
-                class="rounded-xl border px-3 py-2 bg-white/[0.03] border-white/8 dark:bg-white/[0.03] dark:border-white/8 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(205,217,238,0.82)]"
-              >
-                <div class="text-white/40 dark:text-white/40 light:text-slate-500">
-                  {{ t("linksManager.allLinks") }}
-                </div>
-                <div
-                  class="mt-1 text-sm font-medium text-white dark:text-white light:text-slate-900"
-                >
-                  {{ local.quickLinks.length }}
-                </div>
-              </div>
-            </div>
-
-            <button
-              class="px-[18px] py-2 rounded-lg text-[0.875rem] font-semibold cursor-pointer transition-colors duration-500 border-none bg-accent text-slate-950 hover:bg-accent-hover dark:bg-accent dark:text-slate-950 dark:hover:bg-accent-hover light:bg-accent-light light:text-white light:hover:bg-accent-light-hover"
-              @click="emit('open-links-manager')"
+          <div class="flex flex-col gap-1 mb-1">
+            <div
+              v-for="(link, index) in local.quickLinks"
+              :key="link.id"
+              class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto] gap-2 px-2.5 py-2 rounded-lg transition-colors duration-500 bg-white/4 dark:bg-white/4 light:bg-[rgba(255,255,255,0.56)] light:border light:border-[rgba(210,221,239,0.8)]"
             >
-              {{ t("settings.openLinksManager") }}
-            </button>
+              <input
+                v-model="link.name"
+                class="min-w-0 px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+                :placeholder="t('settings.linkName')"
+              />
+              <input
+                v-model="link.url"
+                class="min-w-0 px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+                :placeholder="t('settings.linkUrl')"
+              />
+              <div class="flex items-center justify-end gap-1">
+                <button
+                  class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-white/10 hover:text-white/90 disabled:cursor-not-allowed disabled:opacity-30 dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/90 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
+                  :disabled="index === 0"
+                  :title="t('settings.moveUp')"
+                  @click="moveLink(index, -1)"
+                >
+                  ↑
+                </button>
+                <button
+                  class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-white/10 hover:text-white/90 disabled:cursor-not-allowed disabled:opacity-30 dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/90 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
+                  :disabled="index === local.quickLinks.length - 1"
+                  :title="t('settings.moveDown')"
+                  @click="moveLink(index, 1)"
+                >
+                  ↓
+                </button>
+                <button
+                  class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-red-500/15 hover:text-red-400 dark:text-white/30 dark:hover:bg-red-500/15 dark:hover:text-red-400 light:text-slate-400 light:hover:bg-red-500/10 light:hover:text-red-500"
+                  :title="t('settings.removeLink')"
+                  @click="removeLink(link.id)"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
+
+          <!-- Add form -->
+          <div
+            v-if="addingLink"
+            class="flex flex-col gap-2 p-3 rounded-[10px] border transition-colors duration-500 bg-white/4 border-white/8 dark:bg-white/4 dark:border-white/8 light:bg-[rgba(255,255,255,0.5)] light:border-[rgba(206,218,239,0.82)]"
+          >
+            <input
+              v-model="newLink.name"
+              class="w-full px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+              :placeholder="t('settings.linkName')"
+              @keydown.enter="addLink"
+              @keydown.escape="addingLink = false"
+            />
+            <input
+              v-model="newLink.url"
+              class="w-full px-3 py-2 rounded-lg text-[0.875rem] outline-none border transition-colors duration-500 bg-white/6 border-white/10 text-white placeholder:text-white/25 focus:border-accent/50 dark:bg-white/6 dark:border-white/10 dark:text-white dark:placeholder:text-white/25 dark:focus:border-accent/50 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(200,214,237,0.84)] light:text-slate-900 light:placeholder:text-slate-400 light:focus:border-[rgba(120,155,231,0.56)]"
+              :placeholder="t('settings.linkUrl')"
+              @keydown.enter="addLink"
+              @keydown.escape="addingLink = false"
+            />
+            <div class="flex gap-2 justify-end">
+              <button
+                class="px-[18px] py-2 rounded-lg text-[0.875rem] cursor-pointer transition-colors duration-500 border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 dark:bg-white/8 dark:border-white/12 dark:text-white/70 dark:hover:bg-white/12 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(200,214,237,0.84)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.9)]"
+                @click="addingLink = false"
+              >
+                {{ t("common.cancel") }}
+              </button>
+              <button
+                class="px-[18px] py-2 rounded-lg text-[0.875rem] font-semibold cursor-pointer transition-colors duration-500 border-none bg-accent text-slate-950 hover:bg-accent-hover dark:bg-accent dark:text-slate-950 dark:hover:bg-accent-hover light:bg-accent-light light:text-white light:hover:bg-accent-light-hover"
+                @click="addLink"
+              >
+                {{ t("common.add") }}
+              </button>
+            </div>
+          </div>
+
+          <button
+            v-else
+            class="py-2 bg-transparent border-none text-[0.875rem] cursor-pointer transition-colors duration-500 text-left text-accent/70 hover:text-accent dark:text-accent/70 dark:hover:text-accent light:text-accent-light/80 light:hover:text-accent-light"
+            @click="addingLink = true"
+          >
+            + {{ t("settings.addLink") }}
+          </button>
         </section>
       </div>
 
       <!-- Footer -->
       <div
-        class="flex gap-2 justify-end px-6 py-4 border-t transition-colors duration-500 border-white/8 dark:border-white/8 light:border-[rgba(194,208,231,0.72)]"
+        class="flex gap-2 justify-end px-4 sm:px-6 py-4 border-t transition-colors duration-500 border-white/8 dark:border-white/8 light:border-[rgba(194,208,231,0.72)]"
       >
         <button
           class="px-[18px] py-2 rounded-lg text-[0.875rem] cursor-pointer transition-colors duration-500 border bg-white/8 border-white/12 text-white/70 hover:bg-white/12 dark:bg-white/8 dark:border-white/12 dark:text-white/70 dark:hover:bg-white/12 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(200,214,237,0.84)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.9)]"
