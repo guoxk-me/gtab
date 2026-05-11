@@ -11,11 +11,9 @@ import ClockWidget from "./components/ClockWidget.vue";
 import SearchBar from "./components/SearchBar.vue";
 import QuickLinks from "./components/QuickLinks.vue";
 import SettingsPanel from "./components/SettingsPanel.vue";
-import LinksManager from "./components/LinksManager.vue";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const showSettings = ref(false);
-const showLinksManager = ref(false);
 const settings = ref<Settings>(loadSettings());
 const { t } = useI18n();
 const currentLocale = computed(() => resolveLocale(settings.value.language));
@@ -79,7 +77,6 @@ function onSaveSettings(updated: Settings) {
   saveSettings(updated);
   settingsSnapshot.value = null;
   showSettings.value = false;
-  showLinksManager.value = false;
 }
 
 function openSettings() {
@@ -96,19 +93,6 @@ function closeSettings() {
   colorMode.value = colorModeSnapshot.value;
   settingsSnapshot.value = null;
   showSettings.value = false;
-}
-
-function openLinksManager() {
-  showLinksManager.value = true;
-}
-
-function closeLinksManager() {
-  showLinksManager.value = false;
-}
-
-function openLinksManagerFromSettings() {
-  showSettings.value = false;
-  showLinksManager.value = true;
 }
 
 function onPreviewLanguage(language: Settings["language"]) {
@@ -128,33 +112,29 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
   >
     <canvas ref="canvasRef" class="absolute inset-0 w-full h-full" />
 
-    <main class="relative z-10 w-full h-full flex flex-col items-center justify-center p-5">
+    <main
+      class="relative z-10 w-full h-full flex flex-col items-center justify-center gap-6 sm:gap-10 px-4 py-8"
+    >
       <ClockWidget
         v-if="settings.showClock"
-        class="absolute top-1/2 -translate-y-[220%]"
         :show-seconds="settings.showSeconds"
         :locale="currentLocale"
       />
 
-      <div class="flex flex-col items-center gap-8 w-full">
+      <div class="flex flex-col items-center gap-4 sm:gap-8 w-full">
         <SearchBar :engine="settings.searchEngine" @change-engine="onChangeEngine" />
-        <QuickLinks
-          :links="settings.quickLinks"
-          :link-groups="settings.linkGroups"
-          :pinned-link-ids="settings.pinnedLinkIds"
-          @open-manager="openLinksManager"
-        />
+        <QuickLinks :links="settings.quickLinks" @edit="openSettings" />
       </div>
     </main>
 
     <div
-      class="fixed bottom-6 right-[4.5rem] flex items-center gap-1 rounded-full border px-1 py-1 backdrop-blur-2xl z-10 shadow-[0_8px_24px_rgba(0,0,0,0.32)] transition-colors duration-500 bg-white/[0.06] border-white/[0.10] dark:bg-white/[0.06] dark:border-white/[0.10] light:bg-[rgba(255,255,255,0.62)] light:border-[rgba(255,255,255,0.76)] light:[box-shadow:var(--light-shadow-soft)]"
+      class="fixed bottom-4 sm:bottom-6 right-[3.75rem] sm:right-[4.5rem] flex items-center gap-1 rounded-full border px-1 py-1 backdrop-blur-2xl z-10 shadow-[0_8px_24px_rgba(0,0,0,0.32)] transition-colors duration-500 bg-white/[0.06] border-white/[0.10] dark:bg-white/[0.06] dark:border-white/[0.10] light:bg-[rgba(255,255,255,0.62)] light:border-[rgba(255,255,255,0.76)] light:[box-shadow:var(--light-shadow-soft)]"
       :aria-label="t('theme.selector')"
     >
       <button
         v-for="option in themeOptions"
         :key="option.value"
-        class="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 transition-colors duration-500"
+        class="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all duration-200 transition-colors duration-500"
         :class="
           colorMode === option.value
             ? 'bg-white/[0.14] text-white ring-1 ring-white/[0.14] dark:bg-white/[0.14] dark:text-white dark:ring-white/[0.14] light:bg-[rgba(255,255,255,0.86)] light:text-slate-900 light:ring-1 light:ring-[rgba(184,202,231,0.82)] light:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.84)]'
@@ -163,16 +143,19 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
         :title="t(option.label)"
         @click="colorMode = option.value"
       >
-        <span :class="[option.icon, 'h-4 w-4']" aria-hidden="true" />
+        <span :class="[option.icon, 'h-3.5 w-3.5 sm:h-4 sm:w-4']" aria-hidden="true" />
       </button>
     </div>
 
     <button
-      class="fixed bottom-6 right-6 w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-2xl cursor-pointer z-10 transition-all duration-200 transition-colors duration-500 border shadow-[0_8px_24px_rgba(0,0,0,0.32)] bg-white/[0.06] border-white/[0.10] text-white/40 hover:bg-white/[0.12] hover:text-white/90 hover:rotate-30 dark:bg-white/[0.06] dark:border-white/[0.10] dark:text-white/40 dark:hover:bg-white/[0.12] dark:hover:text-white/90 light:bg-[rgba(255,255,255,0.62)] light:border-[rgba(255,255,255,0.76)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.84)] light:hover:text-slate-900 light:[box-shadow:var(--light-shadow-soft)]"
+      class="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full backdrop-blur-2xl cursor-pointer z-10 transition-all duration-200 transition-colors duration-500 border shadow-[0_8px_24px_rgba(0,0,0,0.32)] bg-white/[0.06] border-white/[0.10] text-white/40 hover:bg-white/[0.12] hover:text-white/90 hover:rotate-30 dark:bg-white/[0.06] dark:border-white/[0.10] dark:text-white/40 dark:hover:bg-white/[0.12] dark:hover:text-white/90 light:bg-[rgba(255,255,255,0.62)] light:border-[rgba(255,255,255,0.76)] light:text-slate-600 light:hover:bg-[rgba(255,255,255,0.84)] light:hover:text-slate-900 light:[box-shadow:var(--light-shadow-soft)]"
       :title="t('settings.open')"
       @click="openSettings"
     >
-      <span :class="[settingsIconClass, 'h-[18px] w-[18px]']" aria-hidden="true" />
+      <span
+        :class="[settingsIconClass, 'h-[16px] w-[16px] sm:h-[18px] sm:w-[18px]']"
+        aria-hidden="true"
+      />
     </button>
 
     <Transition name="fade">
@@ -182,18 +165,8 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
         :color-mode="colorMode"
         @save="onSaveSettings"
         @close="closeSettings"
-        @open-links-manager="openLinksManagerFromSettings"
         @update:language="onPreviewLanguage"
         @update:color-mode="colorMode = $event"
-      />
-    </Transition>
-
-    <Transition name="fade">
-      <LinksManager
-        v-if="showLinksManager"
-        :settings="settings"
-        @close="closeLinksManager"
-        @save="onSaveSettings"
       />
     </Transition>
   </div>

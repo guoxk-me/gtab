@@ -55,7 +55,7 @@ function selectEngine(key: keyof typeof engines) {
 </script>
 
 <template>
-  <div class="relative w-full max-w-[600px]">
+  <div class="relative w-full max-w-[600px] px-4 sm:px-0">
     <!-- Search box -->
     <div
       class="flex items-center rounded-full backdrop-blur-2xl overflow-hidden border transition-all duration-200 transition-colors duration-500 bg-white/10 border-white/15 dark:bg-white/10 dark:border-white/15 light:bg-[rgba(255,255,255,0.68)] light:border-[rgba(255,255,255,0.76)] light:[box-shadow:var(--light-shadow-float)] focus-within:border-accent/50 focus-within:shadow-[0_0_0_3px_rgba(120,160,255,0.15)] dark:focus-within:border-accent/50 light:focus-within:border-[rgba(139,170,226,0.62)] light:focus-within:[box-shadow:var(--light-ring),0_22px_44px_rgba(117,144,187,0.22),inset_0_1px_0_rgba(255,255,255,0.82)]"
@@ -110,7 +110,7 @@ function selectEngine(key: keyof typeof engines) {
     <Transition name="dropdown">
       <div
         v-if="showEngineMenu"
-        class="absolute top-[calc(100%+8px)] left-0 rounded-xl backdrop-blur-xl border p-1.5 min-w-40 z-[100] shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-colors duration-500 bg-slate-900/95 border-white/12 dark:bg-slate-900/95 dark:border-white/12 light:bg-[rgba(248,251,255,0.84)] light:border-[rgba(255,255,255,0.78)] light:[box-shadow:0_20px_46px_rgba(116,138,176,0.2),inset_0_1px_0_rgba(255,255,255,0.84)]"
+        class="absolute top-[calc(100%+8px)] left-0 right-0 sm:left-0 sm:right-auto rounded-xl backdrop-blur-xl border p-1.5 min-w-40 z-[100] shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-colors duration-500 bg-slate-900/95 border-white/12 dark:bg-slate-900/95 dark:border-white/12 light:bg-[rgba(248,251,255,0.84)] light:border-[rgba(255,255,255,0.78)] light:[box-shadow:0_20px_46px_rgba(116,138,176,0.2),inset_0_1px_0_rgba(255,255,255,0.84)]"
       >
         <button
           v-for="(eng, key) in engines"
