@@ -4,6 +4,7 @@ import type { BasicColorSchema } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
 import type { Settings, QuickLink, LanguageSetting } from "../composables/useStorage";
 import { importBrowserBookmarks, isBookmarksApiAvailable } from "../composables/useBookmarkImport";
+import { useSearchHistory } from "../composables/useSearchHistory";
 
 const props = defineProps<{
   settings: Settings;
@@ -21,6 +22,22 @@ const { t } = useI18n();
 
 // Local copy to edit
 const local = reactive<Settings>(JSON.parse(JSON.stringify(props.settings)));
+
+// Search history
+const { history: searchHistory, clearHistory: clearSearchHistory } = useSearchHistory();
+const confirmingClearHistory = ref(false);
+
+function handleClearHistory() {
+  if (confirmingClearHistory.value) {
+    clearSearchHistory();
+    confirmingClearHistory.value = false;
+  } else {
+    confirmingClearHistory.value = true;
+    setTimeout(() => {
+      confirmingClearHistory.value = false;
+    }, 3000);
+  }
+}
 
 const newLink = ref({ name: "", url: "" });
 const addingLink = ref(false);
@@ -267,6 +284,44 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
               <input v-model="local.searchEngine" type="radio" :value="key" class="hidden" />
               {{ label }}
             </label>
+          </div>
+        </section>
+
+        <!-- Search History -->
+        <section class="flex flex-col gap-3">
+          <h3
+            class="text-xs font-semibold uppercase tracking-[0.1em] transition-colors duration-500 text-white/40 dark:text-white/40 light:text-slate-500"
+          >
+            {{ t("settings.searchHistory") }}
+          </h3>
+          <div class="flex items-center justify-between">
+            <span
+              class="text-[0.875rem] transition-colors duration-500 text-white/60 dark:text-white/60 light:text-slate-600"
+            >
+              {{
+                searchHistory.length > 0
+                  ? `${searchHistory.length} ${t("search.history").toLowerCase()}`
+                  : t("search.noHistory")
+              }}
+            </span>
+            <button
+              class="px-3.5 py-1.5 rounded-full border text-sm cursor-pointer transition-all duration-150 transition-colors duration-500 bg-transparent"
+              :class="
+                confirmingClearHistory
+                  ? 'border-red-400/60 text-red-400 bg-red-500/10 dark:border-red-400/60 dark:text-red-400 dark:bg-red-500/10 light:border-red-400/60 light:text-red-500 light:bg-red-500/8'
+                  : searchHistory.length === 0
+                    ? 'border-white/8 text-white/25 cursor-not-allowed dark:border-white/8 dark:text-white/25 light:border-[rgba(194,208,231,0.5)] light:text-slate-400'
+                    : 'border-white/12 text-white/60 hover:border-red-400/40 hover:text-red-400 dark:border-white/12 dark:text-white/60 dark:hover:border-red-400/40 dark:hover:text-red-400 light:border-[rgba(194,208,231,0.82)] light:text-slate-600 light:hover:border-red-400/40 light:hover:text-red-500'
+              "
+              :disabled="searchHistory.length === 0"
+              @click="handleClearHistory"
+            >
+              {{
+                confirmingClearHistory
+                  ? t("settings.clearSearchHistoryConfirm")
+                  : t("settings.clearSearchHistory")
+              }}
+            </button>
           </div>
         </section>
 
