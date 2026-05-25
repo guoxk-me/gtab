@@ -2,52 +2,62 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { getKnownQuickLinkIcon } from "../composables/quickLinkIcons";
-import {
-  cloneQuickLinkItems,
-  isQuickLinkFolder,
-  isQuickLinkLink,
-  reorderQuickLinkItems,
-} from "../composables/quickLinkItems";
+import { isQuickLinkFolder, isQuickLinkLink } from "../composables/quickLinkItems";
+import { useQuickLinkDrag } from "../composables/useQuickLinkDrag";
+import type { QuickLinkDragSource } from "../composables/useQuickLinkDrag";
 import type { QuickLinkItem } from "../composables/useStorage";
 
 const props = defineProps<{ links: QuickLinkItem[] }>();
 const emit = defineEmits<{
   edit: [];
-  reorder: [draggedId: string, toIndex: number];
-  group: [draggedId: string, targetId: string];
+  reorder: [source: QuickLinkDragSource, toIndex: number];
+  reorderFolderLink: [folderId: string, linkId: string, toIndex: number];
+  group: [source: QuickLinkDragSource, targetId: string];
 }>();
 
 const { t } = useI18n();
 
-type DragMode = "reorder" | "group";
-
-const reorderActivationDelayMs = 55;
-const groupThresholdRatio = 0.15;
-const groupActivationDelayMs = 220;
-
-const dragIntentTimer = ref<number | null>(null);
-const pressedIndex = ref<number | null>(null);
-const suppressClickUntil = ref(0);
-const activePointerId = ref<number | null>(null);
-const draggedId = ref<string | null>(null);
-const previewLinks = ref<QuickLinkItem[]>([]);
-const hoverTargetId = ref<string | null>(null);
-const dropMode = ref<DragMode | null>(null);
-const isDragging = ref(false);
-const ghostX = ref(0);
-const ghostY = ref(0);
 const folderOpenId = ref<string | null>(null);
-const reorderCandidateId = ref<string | null>(null);
-const reorderCandidateSince = ref(0);
-const groupCandidateId = ref<string | null>(null);
-const groupCandidateSince = ref(0);
 
-const displayLinks = computed(() => (isDragging.value ? previewLinks.value : props.links));
-const draggedItem = computed(() => props.links.find((item) => item.id === draggedId.value) ?? null);
 const openFolder = computed(() => {
   const item = props.links.find((entry) => entry.id === folderOpenId.value);
   return item && isQuickLinkFolder(item) ? item : null;
 });
+
+const {
+  displayLinks,
+  displayFolderLinks,
+  draggedId,
+  draggedItem,
+  dropMode,
+  ghostStyle,
+  hoverTargetId,
+  isDragging,
+  onFolderLinkPointerDown,
+  onNativeDragStart,
+  onPointerCancel,
+  onPointerDown,
+  onWindowBlur,
+  onWindowPointerMove,
+  onWindowPointerUp,
+  resetDragState,
+  suppressesClick,
+} = useQuickLinkDrag({
+  getLinks: () => props.links,
+  onDragFolderLinkStart: () => {
+    folderOpenId.value = null;
+  },
+  onGroup: (source, targetId) => emit("group", source, targetId),
+  onReorderFolderLink: (folderId, linkId, toIndex) =>
+    emit("reorderFolderLink", folderId, linkId, toIndex),
+  onReorder: (source, toIndex) => emit("reorder", source, toIndex),
+});
+
+const visibleFolderLinks = computed(() =>
+  isDragging.value && displayFolderLinks.value.length > 0
+    ? displayFolderLinks.value
+    : (openFolder.value?.links ?? []),
+);
 
 function getIconClass(item: QuickLinkItem): string {
   if (isQuickLinkFolder(item)) return "icon-[solar--folder-with-files-linear]";
@@ -64,259 +74,8 @@ function getFolderPreview(item: QuickLinkItem): string {
     : "";
 }
 
-function clearDragIntentTimer() {
-  if (dragIntentTimer.value !== null) {
-    window.clearTimeout(dragIntentTimer.value);
-    dragIntentTimer.value = null;
-  }
-}
-
-function resetDragState() {
-  clearDragIntentTimer();
-  pressedIndex.value = null;
-  activePointerId.value = null;
-  draggedId.value = null;
-  hoverTargetId.value = null;
-  dropMode.value = null;
-  isDragging.value = false;
-  previewLinks.value = [];
-  reorderCandidateId.value = null;
-  reorderCandidateSince.value = 0;
-  groupCandidateId.value = null;
-  groupCandidateSince.value = 0;
-}
-
-function finishDrag(commit = true) {
-  if (isDragging.value) {
-    suppressClickUntil.value = window.performance.now() + 250;
-
-    if (commit && draggedId.value && hoverTargetId.value && dropMode.value) {
-      if (dropMode.value === "group") {
-        emit("group", draggedId.value, hoverTargetId.value);
-      } else {
-        const toIndex = previewLinks.value.findIndex((item) => item.id === draggedId.value);
-        if (toIndex >= 0) emit("reorder", draggedId.value, toIndex);
-      }
-    }
-  }
-
-  resetDragState();
-}
-
-function onPointerDown(event: PointerEvent, index: number) {
-  if (event.button !== 0) return;
-
-  clearDragIntentTimer();
-  pressedIndex.value = index;
-  activePointerId.value = event.pointerId;
-  ghostX.value = event.clientX;
-  ghostY.value = event.clientY;
-
-  dragIntentTimer.value = window.setTimeout(() => {
-    if (pressedIndex.value !== index || activePointerId.value !== event.pointerId) return;
-
-    const nextDraggedId = props.links[index]?.id ?? null;
-    if (!nextDraggedId) return;
-
-    draggedId.value = nextDraggedId;
-    previewLinks.value = cloneQuickLinkItems(props.links);
-    hoverTargetId.value = nextDraggedId;
-    dropMode.value = "reorder";
-    isDragging.value = true;
-  }, 180);
-}
-
-function updatePreviewOrder(targetId: string) {
-  const fromIndex = previewLinks.value.findIndex((item) => item.id === draggedId.value);
-  const toIndex = previewLinks.value.findIndex((item) => item.id === targetId);
-  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
-
-  previewLinks.value = reorderQuickLinkItems(previewLinks.value, fromIndex, toIndex);
-}
-
-function updatePreviewInsertion(targetId: string, placeAfter: boolean) {
-  const fromIndex = previewLinks.value.findIndex((item) => item.id === draggedId.value);
-  const targetIndex = previewLinks.value.findIndex((item) => item.id === targetId);
-  if (fromIndex < 0 || targetIndex < 0) return;
-
-  let toIndex = targetIndex;
-
-  if (placeAfter) {
-    toIndex = fromIndex < targetIndex ? targetIndex : targetIndex + 1;
-  } else {
-    toIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
-  }
-
-  if (toIndex < 0 || toIndex >= previewLinks.value.length || fromIndex === toIndex) return;
-  previewLinks.value = reorderQuickLinkItems(previewLinks.value, fromIndex, toIndex);
-}
-
-function resetReorderCandidate() {
-  reorderCandidateId.value = null;
-  reorderCandidateSince.value = 0;
-}
-
-function resetGroupCandidate() {
-  groupCandidateId.value = null;
-  groupCandidateSince.value = 0;
-}
-
-function shouldPlaceAfterTarget(event: PointerEvent, rect: DOMRect): boolean {
-  // Center of the target element
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
-
-  // Vector from target center to pointer
-  const dx = event.clientX - cx;
-  const dy = event.clientY - cy;
-
-  // Determine dominant axis: if items are on the same row (small dy), use x;
-  // otherwise use y to decide row-level placement.
-  const rowThreshold = rect.height * 0.4;
-  if (Math.abs(dy) < rowThreshold) {
-    // Same row: place after if pointer is right of center
-    return dx >= 0;
-  }
-
-  // Different rows: place after if pointer is below center
-  return dy > 0;
-}
-
-function findNearestLinkElement(x: number, y: number): HTMLElement | null {
-  const allItems = Array.from(document.querySelectorAll<HTMLElement>("[data-quick-link-id]"));
-  if (allItems.length === 0) return null;
-
-  // Only snap to nearest if pointer is within ~1.5 item-widths of it
-  const snapRadius = 120;
-
-  let nearest: HTMLElement | null = null;
-  let minDist = Infinity;
-
-  for (const el of allItems) {
-    const r = el.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height / 2;
-    const dist = Math.hypot(x - cx, y - cy);
-    if (dist < minDist) {
-      minDist = dist;
-      nearest = el;
-    }
-  }
-
-  return minDist <= snapRadius ? nearest : null;
-}
-
-function onWindowPointerMove(event: PointerEvent) {
-  if (activePointerId.value !== event.pointerId || !isDragging.value || !draggedId.value) return;
-
-  event.preventDefault();
-  ghostX.value = event.clientX;
-  ghostY.value = event.clientY;
-
-  const directHit = document
-    .elementFromPoint(event.clientX, event.clientY)
-    ?.closest<HTMLElement>("[data-quick-link-id]");
-  const mergeZoneElement = document
-    .elementFromPoint(event.clientX, event.clientY)
-    ?.closest<HTMLElement>("[data-quick-link-merge-zone]");
-
-  // If pointer is in a gap between items, fall back to nearest item
-  const hoveredElement = directHit ?? findNearestLinkElement(event.clientX, event.clientY);
-  const targetId = hoveredElement?.dataset.quickLinkId ?? null;
-  if (!targetId) {
-    resetReorderCandidate();
-    resetGroupCandidate();
-    return;
-  }
-
-  if (targetId === draggedId.value) {
-    hoverTargetId.value = draggedId.value;
-    dropMode.value = "reorder";
-    resetReorderCandidate();
-    resetGroupCandidate();
-    return;
-  }
-
-  const rect = hoveredElement?.getBoundingClientRect();
-  if (!rect) return;
-
-  const mergeTargetId = mergeZoneElement?.dataset.quickLinkMergeZone ?? null;
-
-  const centerDistance = Math.hypot(
-    event.clientX - (rect.left + rect.width / 2),
-    event.clientY - (rect.top + rect.height / 2),
-  );
-  const groupThreshold = Math.min(rect.width, rect.height) * groupThresholdRatio;
-  const targetItem = previewLinks.value.find((item) => item.id === targetId) ?? null;
-  const draggedLink = previewLinks.value.find((item) => item.id === draggedId.value) ?? null;
-  const canGroup =
-    !!draggedLink &&
-    !!targetItem &&
-    isQuickLinkLink(draggedLink) &&
-    (isQuickLinkLink(targetItem) || isQuickLinkFolder(targetItem)) &&
-    mergeTargetId === targetId;
-
-  if (canGroup && centerDistance <= groupThreshold) {
-    if (groupCandidateId.value !== targetId) {
-      groupCandidateId.value = targetId;
-      groupCandidateSince.value = window.performance.now();
-      resetReorderCandidate();
-      return;
-    }
-
-    if (window.performance.now() - groupCandidateSince.value < groupActivationDelayMs) return;
-
-    hoverTargetId.value = targetId;
-    dropMode.value = "group";
-    return;
-  }
-
-  resetGroupCandidate();
-
-  if (mergeTargetId === targetId) {
-    resetReorderCandidate();
-    return;
-  }
-
-  if (hoverTargetId.value === targetId && dropMode.value === "reorder") {
-    resetReorderCandidate();
-    return;
-  }
-
-  if (reorderCandidateId.value !== targetId) {
-    reorderCandidateId.value = targetId;
-    reorderCandidateSince.value = window.performance.now();
-    return;
-  }
-
-  if (window.performance.now() - reorderCandidateSince.value < reorderActivationDelayMs) return;
-
-  hoverTargetId.value = targetId;
-  dropMode.value = "reorder";
-  updatePreviewInsertion(targetId, shouldPlaceAfterTarget(event, rect));
-  resetReorderCandidate();
-}
-
-function onWindowPointerUp(event: PointerEvent) {
-  if (activePointerId.value !== event.pointerId) return;
-  finishDrag(true);
-}
-
-function onPointerCancel(event: PointerEvent) {
-  if (activePointerId.value !== event.pointerId) return;
-  finishDrag(false);
-}
-
-function onWindowBlur() {
-  finishDrag(false);
-}
-
-function onNativeDragStart(event: DragEvent) {
-  event.preventDefault();
-}
-
 function onLinkClick(event: MouseEvent, item: QuickLinkItem) {
-  if (isDragging.value || window.performance.now() < suppressClickUntil.value) {
+  if (suppressesClick()) {
     event.preventDefault();
     event.stopPropagation();
     return;
@@ -353,12 +112,8 @@ onUnmounted(() => {
     <Transition name="ghost">
       <div
         v-if="isDragging && draggedItem"
-        class="pointer-events-none fixed z-[9999] flex flex-col items-center gap-2 transition-transform duration-75"
-        :style="{
-          left: `${ghostX}px`,
-          top: `${ghostY}px`,
-          transform: 'translate(-50%, -50%) rotate(3deg) scale(1.05)',
-        }"
+        class="pointer-events-none fixed left-0 top-0 z-[9999] flex flex-col items-center gap-2 will-change-transform"
+        :style="ghostStyle"
       >
         <div
           class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-[18px] backdrop-blur-xl flex items-center justify-center overflow-hidden border bg-white/24 border-white/35 dark:bg-white/24 dark:border-white/35 light:bg-white/88 light:border-white/95 shadow-[0_20px_50px_rgba(0,0,0,0.38)] light:[box-shadow:0_20px_50px_rgba(100,130,180,0.28)]"
@@ -395,10 +150,11 @@ onUnmounted(() => {
         v-for="(item, index) in displayLinks"
         :key="item.id"
         :data-quick-link-id="item.id"
-        class="group relative flex flex-col items-center gap-2 bg-transparent border-0 px-4 py-4 sm:px-5 sm:py-5"
+        class="group relative flex touch-none select-none flex-col items-center gap-2 bg-transparent border-0 px-4 py-4 sm:px-5 sm:py-5"
         :class="{
           'cursor-grab': !isDragging,
           'cursor-grabbing': isDragging,
+          'pointer-events-none': draggedId === item.id,
         }"
         :title="item.name"
         @pointerdown="onPointerDown($event, index)"
@@ -411,7 +167,7 @@ onUnmounted(() => {
           @click="onLinkClick($event, item)"
         >
           <div
-            :data-quick-link-merge-zone="item.id"
+            data-quick-link-icon-hitbox
             class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-[18px] backdrop-blur-xl flex items-center justify-center overflow-hidden border transition-[transform,box-shadow,background-color,border-color,opacity] duration-180 will-change-transform bg-white/[0.11] border-white/[0.13] dark:bg-white/[0.11] dark:border-white/[0.13] light:bg-[rgba(255,255,255,0.70)] light:border-[rgba(255,255,255,0.80)] light:[box-shadow:var(--light-shadow-soft)] group-hover:bg-white/[0.18] group-hover:-translate-y-1 group-hover:shadow-[0_12px_28px_rgba(0,0,0,0.28)] dark:group-hover:bg-white/[0.18] light:group-hover:bg-[rgba(255,255,255,0.88)] light:group-hover:border-[rgba(255,255,255,0.92)] light:group-hover:[box-shadow:0_18px_34px_rgba(117,144,187,0.22),inset_0_1px_0_rgba(255,255,255,0.84)]"
             :class="{
               'scale-80 opacity-20': draggedId === item.id,
@@ -492,6 +248,7 @@ onUnmounted(() => {
       @click.self="closeFolder"
     >
       <div
+        data-quick-link-folder-panel
         class="w-full max-w-md rounded-[24px] border p-5 shadow-[0_24px_64px_rgba(0,0,0,0.45)] transition-colors duration-500 bg-slate-950/94 border-white/10 dark:bg-slate-950/94 dark:border-white/10 light:bg-[rgba(247,250,255,0.95)] light:border-[rgba(255,255,255,0.85)]"
       >
         <div class="flex items-start justify-between gap-3">
@@ -513,10 +270,20 @@ onUnmounted(() => {
 
         <div class="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
           <a
-            v-for="link in openFolder?.links ?? []"
+            v-for="link in visibleFolderLinks"
             :key="link.id"
             :href="link.url"
-            class="group flex flex-col items-center gap-2 rounded-2xl border px-2 py-3 no-underline transition-all duration-180 bg-white/4 border-white/8 hover:-translate-y-0.5 hover:bg-white/8 dark:bg-white/4 dark:border-white/8 dark:hover:bg-white/8 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(206,218,239,0.82)] light:hover:bg-white"
+            :data-quick-link-folder-link-id="link.id"
+            class="group flex touch-none select-none flex-col items-center gap-2 rounded-2xl border px-2 py-3 no-underline transition-all duration-180 bg-white/4 border-white/8 hover:-translate-y-0.5 hover:bg-white/8 dark:bg-white/4 dark:border-white/8 dark:hover:bg-white/8 light:bg-[rgba(255,255,255,0.72)] light:border-[rgba(206,218,239,0.82)] light:hover:bg-white cursor-grab active:cursor-grabbing"
+            :class="{
+              'opacity-20': draggedId === link.id,
+              'scale-105 border-sky-300/70 bg-white/10 dark:border-sky-300/70 dark:bg-white/10 light:border-[rgba(74,122,255,0.55)] light:bg-white':
+                hoverTargetId === link.id && draggedId !== link.id && dropMode === 'folder-reorder',
+            }"
+            draggable="false"
+            @click="suppressesClick() && $event.preventDefault()"
+            @dragstart="onNativeDragStart"
+            @pointerdown="openFolder && onFolderLinkPointerDown($event, openFolder.id, link)"
           >
             <div
               class="flex h-11 w-11 items-center justify-center rounded-2xl border bg-white/8 border-white/12 dark:bg-white/8 dark:border-white/12 light:bg-[rgba(255,255,255,0.82)] light:border-[rgba(210,221,239,0.82)]"
@@ -559,7 +326,7 @@ onUnmounted(() => {
 }
 
 .ql-item-move {
-  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .folder-fade-enter-active,
