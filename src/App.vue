@@ -6,7 +6,14 @@ import { useI18n } from "vue-i18n";
 import { MeteorShower } from "./canvas/MeteorShower";
 import { loadSettings, saveSettings } from "./composables/useStorage";
 import type { Settings } from "./composables/useStorage";
-import { moveQuickLinkItemIntoTarget, reorderQuickLinkItems } from "./composables/quickLinkItems";
+import {
+  moveFolderLinkIntoTarget,
+  moveQuickLinkItemIntoTarget,
+  moveQuickLinkOutOfFolder,
+  reorderQuickLinkFolderLinks,
+  reorderQuickLinkItems,
+} from "./composables/quickLinkItems";
+import type { QuickLinkDragSource } from "./composables/useQuickLinkDrag";
 import { resolveLocale, setLocale } from "./i18n";
 import ClockWidget from "./components/ClockWidget.vue";
 import SearchBar from "./components/SearchBar.vue";
@@ -105,9 +112,20 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
   saveSettings(settings.value);
 }
 
-function onReorderQuickLinks(draggedId: string, toIndex: number) {
-  const fromIndex = settings.value.quickLinks.findIndex((item) => item.id === draggedId);
-  const quickLinks = reorderQuickLinkItems(settings.value.quickLinks, fromIndex, toIndex);
+function onReorderQuickLinks(source: QuickLinkDragSource, toIndex: number) {
+  const quickLinks =
+    source.type === "folder-link"
+      ? moveQuickLinkOutOfFolder(
+          settings.value.quickLinks,
+          source.folderId,
+          source.link.id,
+          toIndex,
+        )
+      : reorderQuickLinkItems(
+          settings.value.quickLinks,
+          settings.value.quickLinks.findIndex((item) => item.id === source.itemId),
+          toIndex,
+        );
   if (quickLinks === settings.value.quickLinks) return;
 
   settings.value = {
@@ -117,13 +135,34 @@ function onReorderQuickLinks(draggedId: string, toIndex: number) {
   saveSettings(settings.value);
 }
 
-function onGroupQuickLinks(draggedId: string, targetId: string) {
-  const quickLinks = moveQuickLinkItemIntoTarget(
+function onReorderFolderLink(folderId: string, linkId: string, toIndex: number) {
+  const quickLinks = reorderQuickLinkFolderLinks(
     settings.value.quickLinks,
-    draggedId,
-    targetId,
-    t("quickLinks.newFolder"),
+    folderId,
+    linkId,
+    toIndex,
   );
+  if (quickLinks === settings.value.quickLinks) return;
+
+  settings.value = {
+    ...settings.value,
+    quickLinks,
+  };
+  saveSettings(settings.value);
+}
+
+function onGroupQuickLinks(source: QuickLinkDragSource, targetId: string) {
+  const folderName = t("quickLinks.newFolder");
+  const quickLinks =
+    source.type === "folder-link"
+      ? moveFolderLinkIntoTarget(
+          settings.value.quickLinks,
+          source.folderId,
+          source.link.id,
+          targetId,
+          folderName,
+        )
+      : moveQuickLinkItemIntoTarget(settings.value.quickLinks, source.itemId, targetId, folderName);
   if (quickLinks === settings.value.quickLinks) return;
 
   settings.value = {
@@ -156,6 +195,7 @@ function onGroupQuickLinks(draggedId: string, targetId: string) {
           :links="settings.quickLinks"
           @edit="openSettings"
           @reorder="onReorderQuickLinks"
+          @reorder-folder-link="onReorderFolderLink"
           @group="onGroupQuickLinks"
         />
       </div>
