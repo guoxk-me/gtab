@@ -160,6 +160,31 @@ export function reorderQuickLinkItems(
   return nextItems;
 }
 
+export function reorderQuickLinkFolderLinks(
+  items: QuickLinkItem[],
+  folderId: string,
+  linkId: string,
+  toIndex: number,
+): QuickLinkItem[] {
+  const nextItems = cloneQuickLinkItems(items);
+  const folder = nextItems.find((item) => item.id === folderId);
+  if (!folder || !isQuickLinkFolder(folder)) return items;
+
+  const fromIndex = folder.links.findIndex((link) => link.id === linkId);
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= folder.links.length ||
+    toIndex >= folder.links.length
+  ) {
+    return items;
+  }
+
+  folder.links = reorderQuickLinkItems(folder.links, fromIndex, toIndex) as QuickLinkLink[];
+  return sanitizeQuickLinkItems(nextItems);
+}
+
 export function moveQuickLinkItemIntoTarget(
   items: QuickLinkItem[],
   draggedId: string,
@@ -194,4 +219,44 @@ export function moveQuickLinkItemIntoTarget(
   });
 
   return sanitizeQuickLinkItems(nextItems);
+}
+
+export function moveQuickLinkOutOfFolder(
+  items: QuickLinkItem[],
+  folderId: string,
+  linkId: string,
+  toIndex: number,
+): QuickLinkItem[] {
+  const nextItems = cloneQuickLinkItems(items);
+  const folderIndex = nextItems.findIndex((item) => item.id === folderId);
+  const folder = nextItems[folderIndex];
+  if (!folder || !isQuickLinkFolder(folder)) return items;
+
+  const linkIndex = folder.links.findIndex((link) => link.id === linkId);
+  const movedLink = folder.links[linkIndex];
+  if (!movedLink) return items;
+
+  folder.links.splice(linkIndex, 1);
+  if (folder.links.length === 0) {
+    nextItems.splice(folderIndex, 1);
+  }
+
+  const safeIndex = Math.min(Math.max(toIndex, 0), nextItems.length);
+  nextItems.splice(safeIndex, 0, movedLink);
+  return sanitizeQuickLinkItems(nextItems);
+}
+
+export function moveFolderLinkIntoTarget(
+  items: QuickLinkItem[],
+  folderId: string,
+  linkId: string,
+  targetId: string,
+  folderName: string,
+): QuickLinkItem[] {
+  if (linkId === targetId) return items;
+
+  const topLevelItems = moveQuickLinkOutOfFolder(items, folderId, linkId, items.length);
+  if (topLevelItems === items) return items;
+
+  return moveQuickLinkItemIntoTarget(topLevelItems, linkId, targetId, folderName);
 }
