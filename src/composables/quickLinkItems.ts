@@ -14,6 +14,12 @@ export interface QuickLinkFolder {
 
 export type QuickLinkItem = QuickLinkLink | QuickLinkFolder;
 
+export interface QuickLinkPage {
+  id: string;
+  name: string;
+  items: QuickLinkItem[];
+}
+
 export function isQuickLinkLink(item: QuickLinkItem): item is QuickLinkLink {
   return item.type === "link";
 }

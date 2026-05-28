@@ -59,6 +59,15 @@ const messages = {
       noHistory: "暂无搜索历史",
       noMatches: "没有匹配的历史记录",
     },
+    pages: {
+      title: "页面管理",
+      addPage: "添加页面",
+      rename: "重命名",
+      delete: "删除",
+      deleteConfirm: '删除 "{name}" 将会同时移除其中的 {count} 个链接。',
+      pageName: "页面名称",
+      moveToPage: "移至页面",
+    },
     quickLinks: {
       edit: "编辑链接",
       newFolder: "新建文件夹",
@@ -123,6 +132,15 @@ const messages = {
       clearHistoryConfirm: "Confirm Clear",
       noHistory: "No search history",
       noMatches: "No matching history",
+    },
+    pages: {
+      title: "Pages",
+      addPage: "Add Page",
+      rename: "Rename",
+      delete: "Delete",
+      deleteConfirm: 'Deleting "{name}" will also remove all {count} links inside it.',
+      pageName: "Page name",
+      moveToPage: "Move to page",
     },
     quickLinks: {
       edit: "Edit links",

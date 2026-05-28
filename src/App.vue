@@ -7,12 +7,12 @@ import { MeteorShower } from "./canvas/MeteorShower";
 import { loadSettings, saveSettings } from "./composables/useStorage";
 import type { Settings } from "./composables/useStorage";
 import {
-  moveFolderLinkIntoTarget,
-  moveQuickLinkItemIntoTarget,
-  moveQuickLinkOutOfFolder,
-  reorderQuickLinkFolderLinks,
-  reorderQuickLinkItems,
-} from "./composables/quickLinkItems";
+  createPage,
+  groupLinksInPage,
+  moveLinkOutOfFolderInPage,
+  reorderFolderLinksInPage,
+  reorderLinksInPage,
+} from "./composables/quickLinkPages";
 import type { QuickLinkDragSource } from "./composables/useQuickLinkDrag";
 import { resolveLocale, setLocale } from "./i18n";
 import ClockWidget from "./components/ClockWidget.vue";
@@ -112,62 +112,83 @@ function onChangeEngine(engine: Settings["searchEngine"]) {
   saveSettings(settings.value);
 }
 
-function onReorderQuickLinks(source: QuickLinkDragSource, toIndex: number) {
-  const quickLinks =
-    source.type === "folder-link"
-      ? moveQuickLinkOutOfFolder(
-          settings.value.quickLinks,
-          source.folderId,
-          source.link.id,
-          toIndex,
-        )
-      : reorderQuickLinkItems(
-          settings.value.quickLinks,
-          settings.value.quickLinks.findIndex((item) => item.id === source.itemId),
-          toIndex,
-        );
-  if (quickLinks === settings.value.quickLinks) return;
+function onReorderQuickLinks(pageId: string, source: QuickLinkDragSource, toIndex: number) {
+  const pages = settings.value.quickLinkPages;
+  const pageIndex = pages.findIndex((p) => p.id === pageId);
+  if (pageIndex < 0) return;
 
-  settings.value = {
-    ...settings.value,
-    quickLinks,
-  };
+  const page = pages[pageIndex];
+  let updatedPage;
+
+  if (source.type === "folder-link") {
+    updatedPage = moveLinkOutOfFolderInPage(page, source.folderId, source.link.id, toIndex);
+  } else {
+    const fromIndex = page.items.findIndex((item) => item.id === source.itemId);
+    updatedPage = reorderLinksInPage(page, fromIndex, toIndex);
+  }
+
+  if (updatedPage === page) return;
+
+  const newPages = [...pages];
+  newPages[pageIndex] = updatedPage;
+  settings.value = { ...settings.value, quickLinkPages: newPages };
   saveSettings(settings.value);
 }
 
-function onReorderFolderLink(folderId: string, linkId: string, toIndex: number) {
-  const quickLinks = reorderQuickLinkFolderLinks(
-    settings.value.quickLinks,
-    folderId,
-    linkId,
-    toIndex,
-  );
-  if (quickLinks === settings.value.quickLinks) return;
+function onReorderFolderLink(pageId: string, folderId: string, linkId: string, toIndex: number) {
+  const pages = settings.value.quickLinkPages;
+  const pageIndex = pages.findIndex((p) => p.id === pageId);
+  if (pageIndex < 0) return;
 
-  settings.value = {
-    ...settings.value,
-    quickLinks,
-  };
+  const updatedPage = reorderFolderLinksInPage(pages[pageIndex], folderId, linkId, toIndex);
+  if (updatedPage === pages[pageIndex]) return;
+
+  const newPages = [...pages];
+  newPages[pageIndex] = updatedPage;
+  settings.value = { ...settings.value, quickLinkPages: newPages };
   saveSettings(settings.value);
 }
 
-function onGroupQuickLinks(source: QuickLinkDragSource, targetId: string) {
+function onGroupQuickLinks(pageId: string, source: QuickLinkDragSource, targetId: string) {
+  const pages = settings.value.quickLinkPages;
+  const pageIndex = pages.findIndex((p) => p.id === pageId);
+  if (pageIndex < 0) return;
+
   const folderName = t("quickLinks.newFolder");
-  const quickLinks =
+  const updatedPage =
     source.type === "folder-link"
-      ? moveFolderLinkIntoTarget(
-          settings.value.quickLinks,
-          source.folderId,
-          source.link.id,
-          targetId,
-          folderName,
-        )
-      : moveQuickLinkItemIntoTarget(settings.value.quickLinks, source.itemId, targetId, folderName);
-  if (quickLinks === settings.value.quickLinks) return;
+      ? (() => {
+          const moved = moveLinkOutOfFolderInPage(
+            pages[pageIndex],
+            source.folderId,
+            source.link.id,
+            pages[pageIndex].items.length,
+          );
+          if (moved === pages[pageIndex]) return null;
+          return groupLinksInPage(moved, source.link.id, targetId, folderName);
+        })()
+      : groupLinksInPage(pages[pageIndex], source.itemId, targetId, folderName);
 
+  if (!updatedPage || updatedPage === pages[pageIndex]) return;
+
+  const newPages = [...pages];
+  newPages[pageIndex] = updatedPage;
+  settings.value = { ...settings.value, quickLinkPages: newPages };
+  saveSettings(settings.value);
+}
+
+function onChangePage(index: number) {
+  settings.value = { ...settings.value, activePageIndex: index };
+  saveSettings(settings.value);
+}
+
+function onQuickAddPage(name: string) {
+  const newPage = createPage(name);
+  const pages = [...settings.value.quickLinkPages, newPage];
   settings.value = {
     ...settings.value,
-    quickLinks,
+    quickLinkPages: pages,
+    activePageIndex: pages.length - 1,
   };
   saveSettings(settings.value);
 }
@@ -192,8 +213,11 @@ function onGroupQuickLinks(source: QuickLinkDragSource, targetId: string) {
       <div class="flex flex-col items-center gap-5 sm:gap-7 w-full">
         <SearchBar :engine="settings.searchEngine" @change-engine="onChangeEngine" />
         <QuickLinks
-          :links="settings.quickLinks"
+          :pages="settings.quickLinkPages"
+          :active-page-index="settings.activePageIndex"
           @edit="openSettings"
+          @change-page="onChangePage"
+          @quick-add-page="onQuickAddPage"
           @reorder="onReorderQuickLinks"
           @reorder-folder-link="onReorderFolderLink"
           @group="onGroupQuickLinks"

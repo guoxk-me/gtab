@@ -105,12 +105,20 @@ export function useQuickLinkDrag(options: UseQuickLinkDragOptions) {
   }
 
   function refreshDropTargetSnapshots() {
+    const activePage = document.querySelector<HTMLElement>('[data-quick-link-page="active"]');
+    const root = activePage ?? document;
     dropTargetSnapshots = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-quick-link-id]"),
+      root.querySelectorAll<HTMLElement>("[data-quick-link-id]"),
     ).flatMap((element) => {
       const snapshot = readDropTargetSnapshot(element);
       return snapshot ? [snapshot] : [];
     });
+  }
+
+  function cancelPendingDrag() {
+    if (isDragging.value) return;
+    pendingDragSource = null;
+    activePointerId.value = null;
   }
 
   function resetDragState() {
@@ -572,6 +580,7 @@ export function useQuickLinkDrag(options: UseQuickLinkDragOptions) {
     ghostStyle,
     hoverTargetId,
     isDragging,
+    cancelPendingDrag,
     onNativeDragStart,
     onFolderLinkPointerDown,
     onPointerCancel,

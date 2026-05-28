@@ -7,6 +7,7 @@ import type {
   QuickLinkFolder,
   QuickLinkItem,
   QuickLinkLink,
+  QuickLinkPage,
   Settings,
 } from "../composables/useStorage";
 import { importBrowserBookmarks, isBookmarksApiAvailable } from "../composables/useBookmarkImport";
@@ -17,6 +18,13 @@ import {
   sanitizeQuickLinkItems,
   sanitizeQuickLinkLinks,
 } from "../composables/quickLinkItems";
+import {
+  addLinksToPage,
+  createPage,
+  moveLinkBetweenPages,
+  reorderPages,
+  sanitizePage,
+} from "../composables/quickLinkPages";
 import { useSearchHistory } from "../composables/useSearchHistory";
 
 const props = defineProps<{
@@ -33,8 +41,13 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-// Local copy to edit
 const local = reactive<Settings>(JSON.parse(JSON.stringify(props.settings)));
+const editingPageIndex = ref(props.settings.activePageIndex ?? 0);
+
+// Normalize after load if pages array is empty
+if (local.quickLinkPages.length === 0) {
+  local.quickLinkPages = [createPage("Quick Links")];
+}
 
 // Search history
 const { history: searchHistory, clearHistory: clearSearchHistory } = useSearchHistory();
@@ -61,40 +74,166 @@ const importFeedback = ref<{ type: "success" | "error"; message: string } | null
 const dragSourceIndex = ref<number | null>(null);
 const dragTargetIndex = ref<number | null>(null);
 
+// Page management state
+const addingPage = ref(false);
+const newPageName = ref("");
+const renamingPageIndex = ref<number | null>(null);
+const renamePageValue = ref("");
+const deletingPageIndex = ref<number | null>(null);
+const deleteConfirmActive = ref(false);
+const moveLinkPageTarget = ref<Record<string, string>>({});
+
+// Computed helpers for current editing page
+function currentPageItems(): QuickLinkItem[] {
+  if (editingPageIndex.value >= local.quickLinkPages.length) {
+    editingPageIndex.value = Math.max(0, local.quickLinkPages.length - 1);
+  }
+  return local.quickLinkPages[editingPageIndex.value]?.items ?? [];
+}
+
+function updateCurrentPageItems(items: QuickLinkItem[]) {
+  if (editingPageIndex.value < local.quickLinkPages.length) {
+    local.quickLinkPages[editingPageIndex.value] = {
+      ...local.quickLinkPages[editingPageIndex.value],
+      items,
+    };
+  }
+}
+
+// Clamp editing page index when pages change
+function clampEditingIndex() {
+  if (local.quickLinkPages.length === 0) {
+    local.quickLinkPages = [createPage("Quick Links")];
+  }
+  editingPageIndex.value = Math.max(
+    0,
+    Math.min(editingPageIndex.value, local.quickLinkPages.length - 1),
+  );
+}
+
+// --- Page CRUD ---
+
+function addPage() {
+  const name = newPageName.value.trim();
+  if (!name) return;
+  local.quickLinkPages = [...local.quickLinkPages, createPage(name)];
+  editingPageIndex.value = local.quickLinkPages.length - 1;
+  newPageName.value = "";
+  addingPage.value = false;
+  deleteConfirmActive.value = false;
+}
+
+function startRenamePage(index: number) {
+  renamingPageIndex.value = index;
+  renamePageValue.value = local.quickLinkPages[index]?.name ?? "";
+}
+
+function confirmRenamePage() {
+  if (renamingPageIndex.value === null) return;
+  const name = renamePageValue.value.trim();
+  if (name && renamingPageIndex.value < local.quickLinkPages.length) {
+    const pages = [...local.quickLinkPages];
+    pages[renamingPageIndex.value] = { ...pages[renamingPageIndex.value], name };
+    local.quickLinkPages = pages;
+  }
+  renamingPageIndex.value = null;
+}
+
+function cancelRenamePage() {
+  renamingPageIndex.value = null;
+}
+
+function onRenameKeydown(event: KeyboardEvent) {
+  if (event.key === "Enter") confirmRenamePage();
+  else if (event.key === "Escape") cancelRenamePage();
+}
+
+function requestDeletePage(index: number) {
+  if (local.quickLinkPages.length <= 1) return;
+  deletingPageIndex.value = index;
+  deleteConfirmActive.value = true;
+}
+
+function confirmDeletePage() {
+  if (deletingPageIndex.value === null) return;
+  const pages = [...local.quickLinkPages];
+  pages.splice(deletingPageIndex.value, 1);
+  local.quickLinkPages = pages;
+  deletingPageIndex.value = null;
+  deleteConfirmActive.value = false;
+  clampEditingIndex();
+}
+
+function cancelDeletePage() {
+  deletingPageIndex.value = null;
+  deleteConfirmActive.value = false;
+}
+
+function movePageUp(index: number) {
+  if (index <= 0) return;
+  local.quickLinkPages = reorderPages(local.quickLinkPages, index, index - 1);
+  if (editingPageIndex.value === index) editingPageIndex.value = index - 1;
+  else if (editingPageIndex.value === index - 1) editingPageIndex.value = index;
+}
+
+function movePageDown(index: number) {
+  if (index >= local.quickLinkPages.length - 1) return;
+  local.quickLinkPages = reorderPages(local.quickLinkPages, index, index + 1);
+  if (editingPageIndex.value === index) editingPageIndex.value = index + 1;
+  else if (editingPageIndex.value === index + 1) editingPageIndex.value = index;
+}
+
+function moveLinkToPage(linkId: string, toPageId: string) {
+  const fromPageId = local.quickLinkPages[editingPageIndex.value]?.id;
+  if (!fromPageId || fromPageId === toPageId) {
+    moveLinkPageTarget.value[linkId] = "";
+    return;
+  }
+  local.quickLinkPages = moveLinkBetweenPages(local.quickLinkPages, linkId, fromPageId, toPageId);
+  moveLinkPageTarget.value[linkId] = "";
+}
+
+// --- Link CRUD (page-scoped) ---
+
 function addLink() {
-  local.quickLinks = sanitizeQuickLinkItems([
-    ...local.quickLinks,
-    {
-      id: createQuickLinkId(),
-      type: "link",
-      name: newLink.value.name,
-      url: newLink.value.url,
-    },
-  ]);
+  updateCurrentPageItems(
+    sanitizeQuickLinkItems([
+      ...currentPageItems(),
+      {
+        id: createQuickLinkId(),
+        type: "link",
+        name: newLink.value.name,
+        url: newLink.value.url,
+      },
+    ]),
+  );
   newLink.value = { name: "", url: "" };
   addingLink.value = false;
 }
 
 function removeItem(id: string) {
-  local.quickLinks = local.quickLinks.filter((item) => item.id !== id);
+  updateCurrentPageItems(currentPageItems().filter((item) => item.id !== id));
 }
 
 function removeFolderLink(folderId: string, linkId: string) {
-  local.quickLinks = local.quickLinks.flatMap((item) => {
-    if (item.id !== folderId || !isQuickLinkFolder(item)) return [item];
+  updateCurrentPageItems(
+    currentPageItems().flatMap((item) => {
+      if (item.id !== folderId || !isQuickLinkFolder(item)) return [item];
 
-    const links = item.links.filter((link) => link.id !== linkId);
-    if (links.length === 0) return [];
-    if (links.length === 1) return [links[0]];
-    return [{ ...item, links }];
-  });
+      const links = item.links.filter((link) => link.id !== linkId);
+      if (links.length === 0) return [];
+      if (links.length === 1) return [links[0]];
+      return [{ ...item, links }];
+    }),
+  );
 }
 
 function moveLink(index: number, offset: -1 | 1) {
+  const items = currentPageItems();
   const nextIndex = index + offset;
-  if (nextIndex < 0 || nextIndex >= local.quickLinks.length) return;
+  if (nextIndex < 0 || nextIndex >= items.length) return;
 
-  local.quickLinks = reorderQuickLinkItems(local.quickLinks, index, nextIndex);
+  updateCurrentPageItems(reorderQuickLinkItems(items, index, nextIndex));
 }
 
 function onDragStart(event: DragEvent, index: number) {
@@ -103,7 +242,7 @@ function onDragStart(event: DragEvent, index: number) {
 
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", local.quickLinks[index]?.id ?? String(index));
+    event.dataTransfer.setData("text/plain", currentPageItems()[index]?.id ?? String(index));
   }
 }
 
@@ -122,7 +261,7 @@ function onDrop(event: DragEvent, index: number) {
   if (dragSourceIndex.value === null) return;
 
   event.preventDefault();
-  local.quickLinks = reorderQuickLinkItems(local.quickLinks, dragSourceIndex.value, index);
+  updateCurrentPageItems(reorderQuickLinkItems(currentPageItems(), dragSourceIndex.value, index));
   resetDragState();
 }
 
@@ -138,17 +277,18 @@ async function importBookmarks() {
   try {
     const importedLinks = await importBrowserBookmarks();
     if (importedLinks.length === 0) {
-      importFeedback.value = {
-        type: "success",
-        message: t("settings.importEmpty"),
-      };
+      importFeedback.value = { type: "success", message: t("settings.importEmpty") };
       return;
     }
 
-    local.quickLinks =
-      importMode.value === "replace"
-        ? sanitizeQuickLinkItems(importedLinks)
-        : sanitizeQuickLinkItems([...local.quickLinks, ...importedLinks]);
+    if (importMode.value === "replace") {
+      updateCurrentPageItems(sanitizeQuickLinkItems(importedLinks));
+    } else {
+      const page = local.quickLinkPages[editingPageIndex.value];
+      if (page) {
+        local.quickLinkPages[editingPageIndex.value] = addLinksToPage(page, importedLinks);
+      }
+    }
 
     importFeedback.value = {
       type: "success",
@@ -156,17 +296,17 @@ async function importBookmarks() {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    importFeedback.value = {
-      type: "error",
-      message: t("settings.importError", { message }),
-    };
+    importFeedback.value = { type: "error", message: t("settings.importError", { message }) };
   } finally {
     importingBookmarks.value = false;
   }
 }
 
 function save() {
-  local.quickLinks = sanitizeQuickLinkItems(local.quickLinks);
+  local.quickLinkPages = local.quickLinkPages.map((page) => sanitizePage(page));
+  if (local.quickLinkPages.length === 0) {
+    local.quickLinkPages = [createPage("Quick Links")];
+  }
   emit("save", JSON.parse(JSON.stringify(local)));
 }
 
@@ -179,10 +319,12 @@ function normalizeFolderLinks(item: QuickLinkItem): QuickLinkItem {
 }
 
 function onFolderFieldBlur(folderId: string) {
-  local.quickLinks = local.quickLinks.map((item) => {
-    if (item.id !== folderId) return item;
-    return normalizeFolderLinks(item);
-  });
+  updateCurrentPageItems(
+    currentPageItems().map((item) => {
+      if (item.id !== folderId) return item;
+      return normalizeFolderLinks(item);
+    }),
+  );
 }
 
 function isFolder(item: QuickLinkItem): item is QuickLinkFolder {
@@ -228,7 +370,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
   >
     <!-- Panel -->
     <div
-      class="w-full max-w-[480px] max-h-[90vh] sm:max-h-[80vh] flex flex-col rounded-[20px] shadow-[0_24px_64px_rgba(0,0,0,0.6)] border transition-colors duration-500 bg-slate-950/97 border-white/10 dark:bg-slate-950/97 dark:border-white/10 light:bg-[rgba(247,250,255,0.92)] light:border-[rgba(255,255,255,0.82)] light:[box-shadow:var(--light-shadow-panel)]"
+      class="w-full max-w-[520px] max-h-[90vh] sm:max-h-[80vh] flex flex-col rounded-[20px] shadow-[0_24px_64px_rgba(0,0,0,0.6)] border transition-colors duration-500 bg-slate-950/97 border-white/10 dark:bg-slate-950/97 dark:border-white/10 light:bg-[rgba(247,250,255,0.92)] light:border-[rgba(255,255,255,0.82)] light:[box-shadow:var(--light-shadow-panel)]"
     >
       <!-- Header -->
       <div
@@ -397,12 +539,172 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
           </div>
         </section>
 
-        <!-- Quick Links -->
+        <!-- Pages Management -->
+        <section class="flex flex-col gap-3">
+          <h3
+            class="text-xs font-semibold uppercase tracking-[0.1em] transition-colors duration-500 text-white/40 dark:text-white/40 light:text-slate-500"
+          >
+            {{ t("pages.title") }}
+          </h3>
+
+          <!-- Page list with reorder controls -->
+          <div class="flex flex-col gap-1.5">
+            <div
+              v-for="(page, index) in local.quickLinkPages"
+              :key="page.id"
+              class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors duration-500"
+              :class="
+                editingPageIndex === index
+                  ? 'bg-white/8 dark:bg-white/8 light:bg-[rgba(255,255,255,0.6)] light:ring-1 light:ring-[rgba(120,155,231,0.3)]'
+                  : 'bg-white/3 dark:bg-white/3 light:bg-[rgba(255,255,255,0.3)]'
+              "
+            >
+              <button
+                v-if="renamingPageIndex === index"
+                class="flex-1 flex items-center gap-2 min-w-0"
+                @click.stop
+              >
+                <input
+                  v-model="renamePageValue"
+                  type="text"
+                  class="flex-1 min-w-0 px-2 py-1 rounded text-sm border bg-white/8 border-white/12 text-white/90 outline-none focus:border-accent/50 dark:bg-white/8 dark:border-white/12 dark:text-white/90 light:bg-white light:border-[rgba(200,214,237,0.84)] light:text-slate-900"
+                  @keydown="onRenameKeydown"
+                  @blur="confirmRenamePage"
+                />
+              </button>
+              <button
+                v-else
+                class="flex-1 text-left text-sm transition-colors duration-500 text-white/75 hover:text-white dark:text-white/75 dark:hover:text-white light:text-slate-700 light:hover:text-slate-900 cursor-pointer"
+                @click="editingPageIndex = index"
+              >
+                {{ page.name }}
+                <span class="text-xs text-white/40 dark:text-white/40 light:text-slate-500">
+                  ({{ page.items.length }})
+                </span>
+              </button>
+
+              <div class="flex items-center gap-0.5">
+                <button
+                  class="flex items-center justify-center w-6 h-6 bg-transparent border-none rounded cursor-pointer text-white/30 hover:bg-white/10 hover:text-white/80 disabled:opacity-20 disabled:cursor-not-allowed dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/80 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
+                  :disabled="index === 0"
+                  :title="t('settings.moveUp')"
+                  @click="movePageUp(index)"
+                >
+                  ↑
+                </button>
+                <button
+                  class="flex items-center justify-center w-6 h-6 bg-transparent border-none rounded cursor-pointer text-white/30 hover:bg-white/10 hover:text-white/80 disabled:opacity-20 disabled:cursor-not-allowed dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/80 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
+                  :disabled="index === local.quickLinkPages.length - 1"
+                  :title="t('settings.moveDown')"
+                  @click="movePageDown(index)"
+                >
+                  ↓
+                </button>
+                <button
+                  class="flex items-center justify-center w-6 h-6 bg-transparent border-none rounded cursor-pointer text-white/30 hover:bg-white/10 hover:text-white/80 dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/80 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
+                  :title="t('pages.rename')"
+                  @click="startRenamePage(index)"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                </button>
+                <button
+                  v-if="local.quickLinkPages.length > 1"
+                  class="flex items-center justify-center w-6 h-6 bg-transparent border-none rounded cursor-pointer transition-all duration-150 text-white/30 hover:bg-red-500/15 hover:text-red-400 dark:text-white/30 dark:hover:bg-red-500/15 dark:hover:text-red-400 light:text-slate-400 light:hover:bg-red-500/10 light:hover:text-red-500"
+                  :title="t('pages.delete')"
+                  @click="requestDeletePage(index)"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Delete confirmation -->
+          <div
+            v-if="deleteConfirmActive && deletingPageIndex !== null"
+            class="flex items-center gap-2 text-xs"
+          >
+            <span class="text-red-400 dark:text-red-400 light:text-red-600">
+              {{
+                t("pages.deleteConfirm", {
+                  name: local.quickLinkPages[deletingPageIndex]?.name ?? "",
+                  count: local.quickLinkPages[deletingPageIndex]?.items.length ?? 0,
+                })
+              }}
+            </span>
+            <button
+              class="px-2 py-0.5 rounded text-xs border-none cursor-pointer bg-red-500/20 text-red-400 hover:bg-red-500/30 dark:bg-red-500/20 dark:text-red-400 dark:hover:bg-red-500/30 light:bg-red-500/15 light:text-red-600"
+              @click="confirmDeletePage"
+            >
+              {{ t("common.save") }}
+            </button>
+            <button
+              class="px-2 py-0.5 rounded text-xs border-none cursor-pointer bg-white/8 text-white/60 hover:bg-white/12 dark:bg-white/8 dark:text-white/60 dark:hover:bg-white/12 light:bg-[rgba(255,255,255,0.6)] light:text-slate-600"
+              @click="cancelDeletePage"
+            >
+              {{ t("common.cancel") }}
+            </button>
+          </div>
+
+          <!-- Add page -->
+          <div v-if="addingPage" class="flex gap-2 items-center">
+            <input
+              v-model="newPageName"
+              type="text"
+              class="flex-1 min-w-0 px-3 py-1.5 rounded-lg text-sm border bg-white/8 border-white/12 text-white/90 outline-none focus:border-accent/50 dark:bg-white/8 dark:border-white/12 dark:text-white/90 light:bg-white light:border-[rgba(200,214,237,0.84)] light:text-slate-900"
+              :placeholder="t('pages.pageName')"
+              @keydown.enter="addPage"
+              @keydown.escape="addingPage = false"
+            />
+            <button
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold border-none cursor-pointer bg-accent text-slate-950 dark:bg-accent dark:text-slate-950 light:bg-accent-light light:text-white"
+              @click="addPage"
+            >
+              {{ t("common.add") }}
+            </button>
+            <button
+              class="px-3 py-1.5 rounded-lg text-xs border cursor-pointer bg-white/8 border-white/12 text-white/70 dark:bg-white/8 dark:border-white/12 dark:text-white/70 light:bg-[rgba(255,255,255,0.7)] light:text-slate-600"
+              @click="addingPage = false"
+            >
+              {{ t("common.cancel") }}
+            </button>
+          </div>
+          <button
+            v-else
+            class="py-1.5 bg-transparent border-none text-sm cursor-pointer text-left text-accent/70 hover:text-accent dark:text-accent/70 dark:hover:text-accent light:text-accent-light/80 light:hover:text-accent-light"
+            @click="addingPage = true"
+          >
+            + {{ t("pages.addPage") }}
+          </button>
+        </section>
+
+        <!-- Quick Links (page-scoped) -->
         <section class="flex flex-col gap-2">
           <h3
             class="text-xs font-semibold uppercase tracking-[0.1em] mb-1 transition-colors duration-500 text-white/40 dark:text-white/40 light:text-slate-500"
           >
             {{ t("settings.quickLinks") }}
+            <template v-if="local.quickLinkPages[editingPageIndex]">
+              — {{ local.quickLinkPages[editingPageIndex].name }}
+            </template>
           </h3>
 
           <div
@@ -479,7 +781,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
 
           <div class="flex flex-col gap-1 mb-1">
             <div
-              v-for="(item, index) in local.quickLinks"
+              v-for="(item, index) in currentPageItems()"
               :key="item.id"
               class="px-2.5 py-2 rounded-lg transition-colors duration-500 bg-white/4 dark:bg-white/4 light:bg-[rgba(255,255,255,0.56)] light:border light:border-[rgba(210,221,239,0.8)]"
               :class="[
@@ -515,6 +817,23 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
                   :placeholder="t('settings.linkUrl')"
                 />
                 <div class="flex items-center justify-end gap-1">
+                  <!-- Move to page selector -->
+                  <select
+                    v-if="local.quickLinkPages.length > 1"
+                    class="h-7 text-[10px] rounded bg-white/6 border border-white/10 text-white/50 dark:bg-white/6 dark:border-white/10 dark:text-white/50 light:bg-white light:border-[rgba(200,214,237,0.84)] light:text-slate-500 cursor-pointer"
+                    :value="moveLinkPageTarget[item.id] ?? ''"
+                    @change="moveLinkToPage(item.id, ($event.target as HTMLSelectElement).value)"
+                  >
+                    <option value="" disabled>{{ t("pages.moveToPage") }}</option>
+                    <option
+                      v-for="page in local.quickLinkPages"
+                      :key="page.id"
+                      :value="page.id"
+                      :disabled="page.id === local.quickLinkPages[editingPageIndex]?.id"
+                    >
+                      {{ page.name }}
+                    </option>
+                  </select>
                   <button
                     class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-white/10 hover:text-white/90 disabled:cursor-not-allowed disabled:opacity-30 dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/90 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
                     :disabled="index === 0"
@@ -525,7 +844,7 @@ const closeIconClass = "icon-[solar--close-circle-linear]";
                   </button>
                   <button
                     class="flex items-center justify-center w-7 h-7 bg-transparent border-none rounded-md cursor-pointer flex-shrink-0 transition-all duration-150 transition-colors duration-500 text-white/30 hover:bg-white/10 hover:text-white/90 disabled:cursor-not-allowed disabled:opacity-30 dark:text-white/30 dark:hover:bg-white/10 dark:hover:text-white/90 light:text-slate-400 light:hover:bg-[rgba(109,141,196,0.08)] light:hover:text-slate-700"
-                    :disabled="index === local.quickLinks.length - 1"
+                    :disabled="index === currentPageItems().length - 1"
                     :title="t('settings.moveDown')"
                     @click="moveLink(index, 1)"
                   >
