@@ -1,4 +1,4 @@
-import { computed, onMounted, onUnmounted, ref, shallowRef } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import type { Ref } from "vue";
 
 export interface UseSwipePagesOptions {
@@ -9,43 +9,53 @@ export interface UseSwipePagesOptions {
   cancelPendingDrag: () => void;
 }
 
-const SWIPE_ACTIVATION_DX = 40;
+const SWIPE_ACTIVATION_DY = 40;
 const SWIPE_DIRECTION_RATIO = 1.5;
 const SWIPE_PAGE_THRESHOLD = 0.3;
 const SWIPE_VELOCITY_THRESHOLD = 0.3;
 const MAX_SWIPE_OFFSET_RATIO = 0.35;
 const SNAP_DURATION_MS = 300;
+const WHEEL_IDLE_MS = 150;
+
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) return false;
+  if (target.closest("button, input, textarea, select, a, [data-quick-link-id]")) return true;
+  return false;
+}
 
 export function useSwipePages(options: UseSwipePagesOptions) {
   const swipeOffsetPx = ref(0);
   const isSwiping = ref(false);
-  const containerWidth = shallowRef(0);
-  const containerEl = shallowRef<HTMLElement | null>(null);
 
   let pendingPointerId: number | null = null;
-  let swipeStartX = 0;
   let swipeStartY = 0;
-  let swipeLastX = 0;
+  let swipeStartX = 0;
+  let swipeLastY = 0;
   let swipeLastTime = 0;
   let swipeCommitted = false;
+
+  let wheelAccumulated = 0;
+  let wheelIdleTimer: ReturnType<typeof setTimeout> | null = null;
 
   const totalPages = computed(() => options.pageCount.value);
   const isSnapping = computed(() => swipeCommitted && !isSwiping.value);
 
+  function getViewHeight(): number {
+    return window.innerHeight;
+  }
+
   function getTrackTransformStyle(): { transform: string; transition: string } {
     const basePercent = -(options.currentPageIndex.value * 100);
-    const width = containerWidth.value || 1;
-    const offsetPercent = (swipeOffsetPx.value / width) * 100;
+    const height = getViewHeight() || 1;
+    const offsetPercent = (swipeOffsetPx.value / height) * 100;
 
     return {
-      transform: `translateX(${basePercent + offsetPercent}%)`,
+      transform: `translateY(${basePercent + offsetPercent}%)`,
       transition: isSnapping.value
         ? `transform ${SNAP_DURATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
         : "none",
     };
   }
-
-  let resizeObserver: ResizeObserver | null = null;
 
   function clampPage(page: number): number {
     return Math.max(0, Math.min(page, totalPages.value - 1));
@@ -58,7 +68,6 @@ export function useSwipePages(options: UseSwipePagesOptions) {
       return;
     }
 
-    // Set the target page and animate the snap
     swipeCommitted = true;
     swipeOffsetPx.value = 0;
     options.onPageChange(target);
@@ -69,34 +78,19 @@ export function useSwipePages(options: UseSwipePagesOptions) {
     swipeOffsetPx.value = 0;
   }
 
-  function isInsideQuickLinkItem(target: EventTarget | null): boolean {
-    if (!target || !(target instanceof HTMLElement)) return false;
-    return target.closest("[data-quick-link-id]") !== null;
-  }
+  // --- Pointer Events ---
 
-  function isInsideAddButton(target: EventTarget | null): boolean {
-    if (!target || !(target instanceof HTMLElement)) return false;
-    return (
-      target.closest("button") !== null || target.tagName === "BUTTON" || target.tagName === "INPUT"
-    );
-  }
-
-  function onContainerPointerDown(event: PointerEvent) {
-    // Don't interfere with active drag
+  function onWindowPointerDown(event: PointerEvent) {
     if (options.isDragActive.value) return;
-
-    // Don't start swipe when already snapping
     if (swipeCommitted) return;
-
-    // Don't start swipe on interactive elements or quick link items
-    if (isInsideAddButton(event.target) || isInsideQuickLinkItem(event.target)) return;
-
+    if (isInteractiveTarget(event.target)) return;
     if (totalPages.value <= 1) return;
+    if (wheelIdleTimer !== null) return;
 
     pendingPointerId = event.pointerId;
-    swipeStartX = event.clientX;
     swipeStartY = event.clientY;
-    swipeLastX = event.clientX;
+    swipeStartX = event.clientX;
+    swipeLastY = event.clientY;
     swipeLastTime = performance.now();
   }
 
@@ -108,60 +102,51 @@ export function useSwipePages(options: UseSwipePagesOptions) {
       return;
     }
 
-    const dx = event.clientX - swipeStartX;
     const dy = event.clientY - swipeStartY;
+    const dx = event.clientX - swipeStartX;
 
-    // Not enough horizontal movement yet
-    if (Math.abs(dx) < SWIPE_ACTIVATION_DX) return;
+    if (Math.abs(dy) < SWIPE_ACTIVATION_DY) return;
 
-    // Direction check: horizontal must dominate
-    if (Math.abs(dx) <= Math.abs(dy) * SWIPE_DIRECTION_RATIO) {
-      // Vertical movement dominates — cancel pending swipe
-      if (Math.abs(dy) > SWIPE_ACTIVATION_DX) {
+    // Vertical must dominate horizontal
+    if (Math.abs(dy) <= Math.abs(dx) * SWIPE_DIRECTION_RATIO) {
+      if (Math.abs(dx) > SWIPE_ACTIVATION_DY) {
         pendingPointerId = null;
       }
       return;
     }
 
-    // Cancel any pending drag and commit to swipe
     options.cancelPendingDrag();
     isSwiping.value = true;
     swipeCommitted = false;
 
-    // Apply rubber-band clamping
-    const maxOffset = (containerWidth.value || window.innerWidth) * MAX_SWIPE_OFFSET_RATIO;
-    const clampedDx = Math.max(-maxOffset, Math.min(maxOffset, dx));
-    swipeOffsetPx.value = clampedDx;
-    swipeLastX = event.clientX;
+    const maxOffset = getViewHeight() * MAX_SWIPE_OFFSET_RATIO;
+    const clampedDy = Math.max(-maxOffset, Math.min(maxOffset, dy));
+    swipeOffsetPx.value = clampedDy;
+    swipeLastY = event.clientY;
     swipeLastTime = performance.now();
   }
 
   function onWindowPointerUp(event: PointerEvent) {
-    if (pendingPointerId !== event.pointerId) {
-      // If we were swiping with a different pointer, ignore
-      return;
-    }
-
+    if (pendingPointerId !== event.pointerId) return;
     pendingPointerId = null;
 
     if (!isSwiping.value) return;
 
     isSwiping.value = false;
 
-    const dx = event.clientX - swipeStartX;
+    const dy = event.clientY - swipeStartY;
     const dt = performance.now() - swipeLastTime;
-    const velocity = dt > 0 ? Math.abs(event.clientX - swipeLastX) / dt : 0;
-    const width = containerWidth.value || window.innerWidth;
-    const ratio = Math.abs(dx) / width;
+    const velocity = dt > 0 ? Math.abs(event.clientY - swipeLastY) / dt : 0;
+    const height = getViewHeight();
+    const ratio = Math.abs(dy) / height;
 
-    // Decide target page
     let targetPage = options.currentPageIndex.value;
 
     if (ratio >= SWIPE_PAGE_THRESHOLD || velocity >= SWIPE_VELOCITY_THRESHOLD) {
-      if (dx > 0) {
-        targetPage = options.currentPageIndex.value - 1; // swiped right → previous page
+      if (dy > 0) {
+        targetPage = options.currentPageIndex.value - 1; // swiped down → previous page
       } else {
-        targetPage = options.currentPageIndex.value + 1; // swiped left → next page
+        targetPage = options.currentPageIndex.value + 1; // swiped up → next page
       }
     }
 
@@ -185,42 +170,89 @@ export function useSwipePages(options: UseSwipePagesOptions) {
         snapToCurrentPage();
       }
     }
+    if (wheelIdleTimer !== null) {
+      clearTimeout(wheelIdleTimer);
+      wheelIdleTimer = null;
+      finishWheelGesture();
+    }
   }
 
+  // --- Wheel Events ---
+
+  function onWindowWheel(event: WheelEvent) {
+    if (pendingPointerId !== null || isSwiping.value) return;
+    if (options.isDragActive.value) return;
+    if (totalPages.value <= 1) return;
+
+    if (event.target instanceof HTMLElement) {
+      const scrollable = event.target.closest("[data-quick-link-folder-panel]");
+      if (scrollable) return;
+    }
+
+    wheelAccumulated += event.deltaY;
+
+    options.cancelPendingDrag();
+
+    const maxOffset = getViewHeight() * MAX_SWIPE_OFFSET_RATIO;
+    const clamped = Math.max(-maxOffset, Math.min(maxOffset, wheelAccumulated));
+    swipeOffsetPx.value = clamped;
+    isSwiping.value = true;
+    swipeCommitted = false;
+
+    if (wheelIdleTimer !== null) clearTimeout(wheelIdleTimer);
+    wheelIdleTimer = setTimeout(() => {
+      wheelIdleTimer = null;
+      finishWheelGesture();
+    }, WHEEL_IDLE_MS);
+  }
+
+  function finishWheelGesture() {
+    isSwiping.value = false;
+
+    const height = getViewHeight();
+    const ratio = Math.abs(wheelAccumulated) / height;
+
+    let targetPage = options.currentPageIndex.value;
+
+    if (ratio >= SWIPE_PAGE_THRESHOLD) {
+      if (wheelAccumulated > 0) {
+        targetPage = options.currentPageIndex.value - 1; // scroll down → previous
+      } else {
+        targetPage = options.currentPageIndex.value + 1; // scroll up → next
+      }
+    }
+
+    wheelAccumulated = 0;
+    goToPage(targetPage);
+  }
+
+  // --- Lifecycle ---
+
   onMounted(() => {
+    window.addEventListener("pointerdown", onWindowPointerDown, true);
     window.addEventListener("pointermove", onWindowPointerMove, true);
     window.addEventListener("pointerup", onWindowPointerUp, true);
     window.addEventListener("pointercancel", onWindowPointerCancel, true);
     window.addEventListener("blur", onWindowBlur);
-
-    if (containerEl.value) {
-      resizeObserver = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (entry) {
-          containerWidth.value = entry.contentRect.width;
-        }
-      });
-      resizeObserver.observe(containerEl.value);
-    }
+    window.addEventListener("wheel", onWindowWheel, { passive: true });
   });
 
   onUnmounted(() => {
+    window.removeEventListener("pointerdown", onWindowPointerDown, true);
     window.removeEventListener("pointermove", onWindowPointerMove, true);
     window.removeEventListener("pointerup", onWindowPointerUp, true);
     window.removeEventListener("pointercancel", onWindowPointerCancel, true);
     window.removeEventListener("blur", onWindowBlur);
-    resizeObserver?.disconnect();
+    window.removeEventListener("wheel", onWindowWheel);
+    if (wheelIdleTimer !== null) clearTimeout(wheelIdleTimer);
   });
 
   return {
     swipeOffsetPx,
     isSwiping,
-    containerEl,
-    containerWidth,
     isSnapping,
     totalPages,
     goToPage,
     getTrackTransformStyle,
-    onContainerPointerDown,
   };
 }

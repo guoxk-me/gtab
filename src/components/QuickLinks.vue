@@ -201,11 +201,7 @@ onUnmounted(() => {
   </Teleport>
 
   <!-- Swipe viewport -->
-  <div
-    ref="swipe.containerEl"
-    class="relative overflow-hidden w-full touch-pan-y"
-    @pointerdown="swipe.onContainerPointerDown"
-  >
+  <div class="relative overflow-hidden w-full">
     <div :style="swipe.getTrackTransformStyle()" class="flex">
       <!-- Each page -->
       <div
