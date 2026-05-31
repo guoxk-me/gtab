@@ -226,6 +226,15 @@ export function useQuickLinkDrag(options: UseQuickLinkDragOptions) {
       return nextItems;
     }
 
+    if (folder.links.length === 1) {
+      const [remainingLink] = folder.links;
+      if (remainingLink) {
+        nextItems.splice(folderIndex, 1, { ...remainingLink });
+        nextItems.splice(folderIndex + 1, 0, { ...link });
+        return nextItems;
+      }
+    }
+
     nextItems.splice(folderIndex + 1, 0, { ...link });
     return nextItems;
   }

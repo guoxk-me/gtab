@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reorderQuickLinkFolderLinks } from "./quickLinkItems";
+import { moveQuickLinkOutOfFolder, reorderQuickLinkFolderLinks } from "./quickLinkItems";
 import type { QuickLinkItem } from "./quickLinkItems";
 
 const links = [
@@ -33,5 +33,26 @@ describe("reorderQuickLinkFolderLinks", () => {
       "bravo",
       "charlie",
     ]);
+  });
+});
+
+describe("moveQuickLinkOutOfFolder", () => {
+  it("converts a folder to its remaining link when only one link is left", () => {
+    const items: QuickLinkItem[] = [
+      {
+        id: "folder",
+        type: "folder",
+        name: "Folder",
+        links: links.slice(0, 2).map((link) => ({ ...link })),
+      },
+      { id: "delta", type: "link", name: "Delta", url: "https://delta.example/" },
+    ];
+
+    const moved = moveQuickLinkOutOfFolder(items, "folder", "bravo", 1);
+
+    expect(moved).not.toBe(items);
+    expect(moved.map((item) => item.id)).toEqual(["alpha", "bravo", "delta"]);
+    expect(moved.every((item) => item.type === "link")).toBe(true);
+    expect(items[0]?.type).toBe("folder");
   });
 });

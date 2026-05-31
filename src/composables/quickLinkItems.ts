@@ -245,6 +245,9 @@ export function moveQuickLinkOutOfFolder(
   folder.links.splice(linkIndex, 1);
   if (folder.links.length === 0) {
     nextItems.splice(folderIndex, 1);
+  } else if (folder.links.length === 1) {
+    const [remainingLink] = folder.links;
+    if (remainingLink) nextItems.splice(folderIndex, 1, remainingLink);
   }
 
   const safeIndex = Math.min(Math.max(toIndex, 0), nextItems.length);
